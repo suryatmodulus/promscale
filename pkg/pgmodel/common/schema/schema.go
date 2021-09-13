@@ -17,5 +17,7 @@ const (
 	SeriesView = "prom_series"
 	MetricView = "prom_metric"
 	DataSeries = "prom_data_series"
+
 	Trace      = "_ps_trace"
+	TraceView  = "ps_trace"
 )
