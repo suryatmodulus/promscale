@@ -1,0 +1,286 @@
+#!/usr/bin/env python3
+from typing import Dict, Iterable, List, Any
+import uuid
+from datetime import date, datetime, timedelta
+import random
+import string
+import os
+import json
+import psycopg2
+
+
+MIN_DEPTH=2
+MAX_DEPTH=5
+MIN_BREADTH=1
+MAX_BREADTH=3
+
+class Resource:
+    tags: Dict[str, Any]
+    dropped_tags_count: int
+    schema_url: str
+
+
+class InstLib:
+    name: str
+    version: str
+    schema_url: str
+
+
+class Span:
+    trace_id: uuid
+    span_id: int
+    trace_state: str
+    parent_span_id: int
+    name: str
+    span_kind: str
+    start_time: datetime
+    end_time: datetime
+    span_tags: Dict[str, Any]
+    dropped_tags_count: int
+    dropped_events_count: int
+    dropped_link_count: int
+    status_code: str
+    status_message: str
+    inst_lib: InstLib
+    resource: Resource
+
+
+class Trace:
+    trace_id: uuid
+    spans: List[Span]
+
+
+def generate_tags() -> Dict[str, Any]:
+    tags = {}
+    for _ in range(random.randint(3, 12)):
+        kind = random.choice(['int', 'bool', 'date', 'text'])
+        num = random.randint(1, 50)
+        k = f"{kind}{num}"
+        if k in tags:
+            continue
+        if kind == 'int':
+            v = random.randint(1, 50)
+        elif kind == 'bool':
+            v = random.choice([True, False])
+        elif kind == 'date':
+            v = (date(2021, 1, 1) + timedelta(days=random.randint(0, 365))).isoformat()
+        else:
+            v = random.choice(string.ascii_lowercase + string.ascii_uppercase) * random.randint(1, 5)
+        tags[k] = v
+    return tags
+
+
+def generate_resource() -> Resource:
+    i = random.randint(1, 20)
+    resource = Resource()
+    resource.tags = generate_tags()
+    resource.schema_url = f"service{i}.resource.example"
+    resource.dropped_tags_count = random.choice([0, 0, 0, 1, 2])
+    return resource
+
+
+def generate_instlib() -> InstLib:
+    i = random.randint(1, 20)
+    inst_lib = InstLib()
+    inst_lib.name = f"lib{i}"
+    inst_lib.version = "1.2.3"
+    inst_lib.schema_url = f"lib{i}.instrumentation.example"
+    return inst_lib
+
+
+def generate_span_kind() -> str:
+    return random.choice(['SPAN_KIND_UNSPECIFIED', 'SPAN_KIND_INTERNAL', 'SPAN_KIND_SERVER', 'SPAN_KIND_CLIENT', 'SPAN_KIND_PRODUCER', 'SPAN_KIND_CONSUMER'])
+
+
+def generate_status_code() -> str:
+    return random.choice(['STATUS_CODE_UNSET', 'STATUS_CODE_OK', 'STATUS_CODE_ERROR'])
+
+
+def generate_span(trace: Trace, parent_span: Span, depth: int, child: int, siblings: int, min_breadth: int, max_breadth: int) -> None:
+    span = Span()
+    span.trace_id=trace.trace_id
+    span.span_id=random.getrandbits(63)
+    if parent_span is None:
+        span.parent_span_id = None
+        span.start_time = datetime.now()
+        span.end_time = span.start_time + timedelta(milliseconds=random.randint(50, 5000))
+    else:
+        span.parent_span_id = parent_span.span_id
+        p = parent_span.end_time - parent_span.start_time
+        d = p / siblings
+        span.start_time = parent_span.end_time + (d * child)
+        span.end_time = span.start_time + d
+    span.trace_state = f"trace_state{random.randint(1, 4)}"
+    span.name = 'r' if parent_span is None else f"{parent_span.name}.f{child}"
+    span.span_kind = generate_span_kind()
+    span.span_tags = generate_tags()
+    span.dropped_tags_count = random.choice([0, 0, 0, 1, 2])
+    span.dropped_events_count = random.choice([0, 0, 0, 1, 2])
+    span.dropped_link_count = random.choice([0, 0, 0, 1, 2])
+    span.status_code = generate_status_code()
+    span.status_message = span.status_code
+    span.inst_lib = generate_instlib()
+    span.resource = generate_resource()
+    trace.spans.append(span)
+    depth = depth - 1
+    if depth > 0:
+        siblings = random.randint(min_breadth, max_breadth)
+        for child in range(siblings):
+            generate_span(trace, span, depth, child, siblings, min_breadth, max_breadth)
+
+
+def generate_trace(min_depth: int, max_depth: int, min_breadth: int, max_breadth: int) -> Trace:
+    trace = Trace()
+    trace.trace_id=uuid.uuid4()
+    trace.spans=[]
+    depth = random.randint(min_depth, max_depth)
+    generate_span(trace, None, depth, 0, 0, min_breadth, max_breadth)
+    return trace
+
+
+def save_tag_keys(tag_keys: List[str], cur, con) -> None:
+    cur.execute('''
+    select x
+    from unnest(%s) x
+    where not exists
+    (
+        select 1
+        from _ps_trace.tag_key k
+        where k.key = x
+    )
+    ''', (tag_keys,))
+    for key in [k for k in cur]:
+        for i in range(3):  # retry up to 3 times
+            try:
+                cur.execute('select _ps_trace.put_tag_key(%s)', (key,))
+                con.commit()
+                break
+            except psycopg2.errors.DeadlockDetected:
+                print('X', end='', flush=True)
+                con.rollback()
+
+
+def save_tags(tags: Dict[str, Any], cur, con) -> None:
+    cur.execute('''
+    select key, value
+    from jsonb_each(%s) x
+    where not exists
+    (
+        select 1
+        from _ps_trace.tag g
+        where g.key = x.key
+        and g.value = x.value
+    )
+    ''', (json.dumps(tags),))
+    for k, v in [(r[0], r[1]) for r in cur]:
+        for i in range(3):  # retry up to 3 times
+            try:
+                cur.execute('select _ps_trace.put_tag(%s, %s)', (k, json.dumps(v)))
+                con.commit()
+                break
+            except psycopg2.errors.DeadlockDetected:
+                print('X', end='', flush=True)
+                con.rollback()
+
+
+def save_inst_lib(inst_lib: InstLib, cur) -> None:
+    cur.execute('insert into _ps_trace.schema_url (url) values (%s) on conflict (url) do nothing', (inst_lib.schema_url,))
+    cur.execute('''
+        insert into _ps_trace.inst_lib (name, version, schema_url_id)
+        select %s, %s, (select id from _ps_trace.schema_url where url = %s limit 1)
+        on conflict (name, version, schema_url_id) do nothing
+        ''', (inst_lib.name, inst_lib.version, inst_lib.schema_url))
+
+
+def save_span_name(name: str, cur) -> None:
+    cur.execute('insert into _ps_trace.span_name (name) values (%s) on conflict (name) do nothing', (name,))
+
+
+def save_span(span: Span, cur) -> None:
+    cur.execute('insert into _ps_trace.schema_url (url) values (%s) on conflict (url) do nothing', (span.resource.schema_url,))
+    sql = '''
+    insert into _ps_trace.span
+    (
+        trace_id,
+        span_id,
+        trace_state,
+        parent_span_id,
+        name_id,
+        span_kind,
+        start_time,
+        end_time,
+        span_tags,
+        dropped_tags_count,
+        dropped_events_count,
+        dropped_link_count,
+        status_code,
+        status_message,
+        inst_lib_id,
+        resource_tags,
+        resource_dropped_tags_count,
+        resource_schema_url_id
+    )
+    select
+        %(trace_id)s,
+        %(span_id)s,
+        %(trace_state)s,
+        %(parent_span_id)s,
+        (select id from _ps_trace.span_name where name = %(name)s limit 1),
+        %(span_kind)s,
+        %(start_time)s,
+        %(end_time)s,
+        _ps_trace.get_tag_map(%(span_tags)s),
+        %(dropped_tags_count)s,
+        %(dropped_events_count)s,
+        %(dropped_link_count)s,
+        %(status_code)s,
+        %(status_message)s,
+        (select id from _ps_trace.inst_lib where name = %(inst_lib)s limit 1),
+        _ps_trace.get_tag_map(%(resource_tags)s),
+        %(resource_dropped_tags_count)s,
+        (select id from _ps_trace.schema_url where url = %(resource_schema_url)s limit 1)
+    '''
+    cur.execute(sql, {
+        'trace_id': span.trace_id.hex,
+        'span_id': span.span_id,
+        'trace_state': span.trace_state,
+        'parent_span_id': span.parent_span_id,
+        'name': span.name,
+        'span_kind': span.span_kind,
+        'start_time': span.start_time,
+        'end_time': span.end_time,
+        'span_tags': json.dumps(span.span_tags),
+        'dropped_tags_count': span.dropped_tags_count,
+        'dropped_events_count': span.dropped_events_count,
+        'dropped_link_count': span.dropped_link_count,
+        'status_code': span.status_code,
+        'status_message': span.status_message,
+        'inst_lib': span.inst_lib.name,
+        'resource_tags': json.dumps(span.resource.tags),
+        'resource_dropped_tags_count': span.resource.dropped_tags_count,
+        'resource_schema_url': span.resource.schema_url
+    })
+
+
+def save_trace(trace: Trace, cur, con) -> None:
+    print(f'{len(trace.spans)}', end='', flush=True)
+    for span in trace.spans:
+        save_tag_keys([k for k in span.span_tags.keys()], cur, con)
+        save_tag_keys([k for k in span.resource.tags.keys()], cur, con)
+        save_tags(span.span_tags, cur, con)
+        save_tags(span.resource.tags, cur, con)
+        save_inst_lib(span.inst_lib, cur)
+        save_span_name(span.name, cur)
+        save_span(span, cur)
+        print('.', end='', flush=True)
+        con.commit()
+    print('', flush=True)
+
+
+if __name__ == '__main__':
+    assert 'DATABASE_URL' in os.environ
+    with psycopg2.connect(os.environ['DATABASE_URL']) as con:
+        with con.cursor() as cur:
+            while True:
+                save_trace(generate_trace(MIN_DEPTH, MAX_DEPTH, MIN_BREADTH, MAX_BREADTH), cur, con)
+
