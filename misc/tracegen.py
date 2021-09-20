@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Dict, Iterable, List, Any
+from typing import Dict, List, Any, Tuple
 import uuid
 from datetime import date, datetime, timedelta
 import random
@@ -9,83 +9,16 @@ import json
 import psycopg2
 
 
-MIN_DEPTH=2
-MAX_DEPTH=5
-MIN_BREADTH=1
-MAX_BREADTH=3
+MIN_DEPTH = 2
+MAX_DEPTH = 5
+MIN_BREADTH = 1
+MAX_BREADTH = 3
 
-STD_TAGS = [
-    'service.name',
-    'service.namespace',
-    'service.instance.id',
-    'service.version',
-    'telemetry.sdk.name',
-    'telemetry.sdk.language',
-    'telemetry.sdk.version',
-    'telemetry.auto.version',
-    'container.name',
-    'container.id',
-    'container.runtime',
-    'container.image.name',
-    'container.image.tag',
-    'faas.name',
-    'faas.id',
-    'faas.version',
-    'faas.instance',
-    'faas.max_memory',
-    'process.pid',
-    'process.executable.name',
-    'process.executable.path',
-    'process.command',
-    'process.command_line',
-    'process.command_args',
-    'process.owner',
-    'process.runtime.name',
-    'process.runtime.version',
-    'process.runtime.description',
-    'webengine.name',
-    'webengine.version',
-    'webengine.description',
-    'host.id',
-    'host.name',
-    'host.type',
-    'host.arch',
-    'host.image.name',
-    'host.image.id',
-    'host.image.version',
-    'os.type',
-    'os.description',
-    'os.name',
-    'os.version',
-    'device.id',
-    'device.model.identifier',
-    'device.model.name',
-    'cloud.provider',
-    'cloud.account.id',
-    'cloud.region',
-    'cloud.availability_zone',
-    'cloud.platform',
-    'deployment.environment',
-    'k8s.cluster',
-    'k8s.node.name',
-    'k8s.node.uid',
-    'k8s.namespace.name',
-    'k8s.pod.uid',
-    'k8s.pod.name',
-    'k8s.container.name',
-    'k8s.replicaset.uid',
-    'k8s.replicaset.name',
-    'k8s.deployment.uid',
-    'k8s.deployment.name',
-    'k8s.statefulset.uid',
-    'k8s.statefulset.name',
-    'k8s.daemonset.uid',
-    'k8s.daemonset.name',
-    'k8s.job.uid',
-    'k8s.job.name',
-    'k8s.cronjob.uid',
-    'k8s.cronjob.name'
-]
+SPAN_TAG_TYPE = 1
+RESOURCE_TAG_TYPE = 2
+
+std_tag_key_set = {}
+std_tag_key_list = []
 
 
 class Resource:
@@ -129,7 +62,7 @@ def generate_tags() -> Dict[str, Any]:
     # service.name is "required" per spec
     tags['service.name'] = random.choice(string.ascii_lowercase + string.ascii_uppercase) * random.randint(1, 5)
     for _ in range(random.randint(3, 12)):
-        which = random.choice([]'fake', 'standard'])
+        which = random.choice(['fake', 'standard'])
         if which == 'fake':
             kind = random.choice(['int', 'bool', 'date', 'text'])
             num = random.randint(1, 50)
@@ -146,7 +79,7 @@ def generate_tags() -> Dict[str, Any]:
                 v = random.choice(string.ascii_lowercase + string.ascii_uppercase) * random.randint(1, 5)
             tags[k] = v
         else:
-            k = random.choice(STD_TAGS)
+            k = random.choice(std_tag_key_list)
             if k in tags:
                 continue
             v = random.choice(string.ascii_lowercase + string.ascii_uppercase) * random.randint(1, 5)
@@ -182,8 +115,8 @@ def generate_status_code() -> str:
 
 def generate_span(trace: Trace, parent_span: Span, depth: int, child: int, siblings: int, min_breadth: int, max_breadth: int) -> None:
     span = Span()
-    span.trace_id=trace.trace_id
-    span.span_id=random.getrandbits(63)
+    span.trace_id = trace.trace_id
+    span.span_id = random.getrandbits(63)
     if parent_span is None:
         span.parent_span_id = None
         span.start_time = datetime.now()
@@ -215,56 +148,75 @@ def generate_span(trace: Trace, parent_span: Span, depth: int, child: int, sibli
 
 def generate_trace(min_depth: int, max_depth: int, min_breadth: int, max_breadth: int) -> Trace:
     trace = Trace()
-    trace.trace_id=uuid.uuid4()
-    trace.spans=[]
+    trace.trace_id = uuid.uuid4()
+    trace.spans = []
     depth = random.randint(min_depth, max_depth)
     generate_span(trace, None, depth, 0, 0, min_breadth, max_breadth)
     return trace
 
 
-def save_tag_keys(tag_keys: List[str], cur, con) -> None:
-    cur.execute('''
-    select x
-    from unnest(%s) x
-    where not exists
-    (
-        select 1
-        from _ps_trace.tag_key k
-        where k.key = x
-    )
-    ''', (tag_keys,))
-    for key in [k for k in cur]:
-        for i in range(3):  # retry up to 3 times
-            try:
-                cur.execute('select _ps_trace.put_tag_key(%s)', (key,))
-                con.commit()
-                break
-            except psycopg2.errors.DeadlockDetected:
-                print('X', end='', flush=True)
-                con.rollback()
+def save_tag_keys(tag_keys: List[Tuple[str, int]], cur) -> None:
+    to_save = []
+    for t in tag_keys:
+        if t[0] not in std_tag_key_set:
+            to_save.append(t)
+    if len(to_save) == 0:
+        return
+    to_save.sort(key=lambda tup: tup[0])
+    for tup in to_save:
+        cur.execute(f"select _ps_trace.put_tag_key(%s, %s::_ps_trace.tag_type)", tup)
 
 
-def save_tags(tags: Dict[str, Any], cur, con) -> None:
-    cur.execute('''
-    select key, value
-    from jsonb_each(%s) x
-    where not exists
-    (
-        select 1
-        from _ps_trace.tag g
-        where g.key = x.key
-        and g.value = x.value
-    )
-    ''', (json.dumps(tags),))
-    for k, v in [(r[0], r[1]) for r in cur]:
-        for i in range(3):  # retry up to 3 times
-            try:
-                cur.execute('select _ps_trace.put_tag(%s, %s)', (k, json.dumps(v)))
-                con.commit()
-                break
-            except psycopg2.errors.DeadlockDetected:
-                print('X', end='', flush=True)
-                con.rollback()
+#def save_tag_keys(tag_keys: List[str], cur, con) -> None:
+#    cur.execute('''
+#    select x
+#    from unnest(%s) x
+#    where not exists
+#    (
+#        select 1
+#        from _ps_trace.tag_key k
+#        where k.key = x
+#    )
+#    ''', (tag_keys,))
+#    for key in [k for k in cur]:
+#        for i in range(3):  # retry up to 3 times
+#            try:
+#                cur.execute('select _ps_trace.put_tag_key(%s)', (key,))
+#                con.commit()
+#                break
+#            except psycopg2.errors.DeadlockDetected:
+#                print('X', end='', flush=True)
+#                con.rollback()
+
+
+def save_tags(tags: List[Tuple[str, Any, int]], cur) -> None:
+    tags.sort(key=lambda tup: (tup[0], tup[1]))
+    for tag in tags:
+        x = 'to_jsonb(%s::text)' if type(tag[1]) == str else 'to_jsonb(%s)'
+        cur.execute(f"select _ps_trace.put_tag(%s, {x}, %s::_ps_trace.tag_type)", tag)
+
+
+#def save_tags(tags: Dict[str, Any], cur, con) -> None:
+#    cur.execute('''
+#    select key, value
+#    from jsonb_each(%s) x
+#    where not exists
+#    (
+#        select 1
+#        from _ps_trace.tag g
+#        where g.key = x.key
+#        and g.value = x.value
+#    )
+#    ''', (json.dumps(tags),))
+#    for k, v in [(r[0], r[1]) for r in cur]:
+#        for i in range(3):  # retry up to 3 times
+#            try:
+#                cur.execute('select _ps_trace.put_tag(%s, %s)', (k, json.dumps(v)))
+#                con.commit()
+#                break
+#            except psycopg2.errors.DeadlockDetected:
+#                print('X', end='', flush=True)
+#                con.rollback()
 
 
 def save_inst_lib(inst_lib: InstLib, cur) -> None:
@@ -349,22 +301,38 @@ def save_span(span: Span, cur) -> None:
 def save_trace(trace: Trace, cur, con) -> None:
     print(f'{len(trace.spans)}', end='', flush=True)
     for span in trace.spans:
-        save_tag_keys([k for k in span.span_tags.keys()], cur, con)
-        save_tag_keys([k for k in span.resource.tags.keys()], cur, con)
-        save_tags(span.span_tags, cur, con)
-        save_tags(span.resource.tags, cur, con)
+        # save span tag keys and resource tag keys
+        keys = [(k, SPAN_TAG_TYPE) for k in span.span_tags.keys()]
+        keys.extend([(k, RESOURCE_TAG_TYPE) for k in span.resource.tags.keys()])
+        save_tag_keys(keys, cur)
+        # save span tags and resource tags
+        tags = [(k, v, SPAN_TAG_TYPE) for k, v in span.span_tags.items()]
+        tags.extend([(k, v, RESOURCE_TAG_TYPE) for k, v in span.resource.tags.items()])
+        save_tags(tags, cur)
+
         save_inst_lib(span.inst_lib, cur)
+
         save_span_name(span.name, cur)
+
         save_span(span, cur)
+
         print('.', end='', flush=True)
         con.commit()
     print('', flush=True)
+
+
+def load_standard_tags(cur) -> None:
+    global std_tag_key_set, std_tag_key_list
+    cur.execute('select key from _ps_trace.tag_key where id <= 174')
+    std_tag_key_list = [r[0] for r in cur]
+    std_tag_key_set = {k for k in std_tag_key_list}
 
 
 if __name__ == '__main__':
     assert 'DATABASE_URL' in os.environ
     with psycopg2.connect(os.environ['DATABASE_URL']) as con:
         with con.cursor() as cur:
+            load_standard_tags(cur)
             while True:
                 save_trace(generate_trace(MIN_DEPTH, MAX_DEPTH, MIN_BREADTH, MAX_BREADTH), cur, con)
 
