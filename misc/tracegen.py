@@ -14,6 +14,80 @@ MAX_DEPTH=5
 MIN_BREADTH=1
 MAX_BREADTH=3
 
+STD_TAGS = [
+    'service.name',
+    'service.namespace',
+    'service.instance.id',
+    'service.version',
+    'telemetry.sdk.name',
+    'telemetry.sdk.language',
+    'telemetry.sdk.version',
+    'telemetry.auto.version',
+    'container.name',
+    'container.id',
+    'container.runtime',
+    'container.image.name',
+    'container.image.tag',
+    'faas.name',
+    'faas.id',
+    'faas.version',
+    'faas.instance',
+    'faas.max_memory',
+    'process.pid',
+    'process.executable.name',
+    'process.executable.path',
+    'process.command',
+    'process.command_line',
+    'process.command_args',
+    'process.owner',
+    'process.runtime.name',
+    'process.runtime.version',
+    'process.runtime.description',
+    'webengine.name',
+    'webengine.version',
+    'webengine.description',
+    'host.id',
+    'host.name',
+    'host.type',
+    'host.arch',
+    'host.image.name',
+    'host.image.id',
+    'host.image.version',
+    'os.type',
+    'os.description',
+    'os.name',
+    'os.version',
+    'device.id',
+    'device.model.identifier',
+    'device.model.name',
+    'cloud.provider',
+    'cloud.account.id',
+    'cloud.region',
+    'cloud.availability_zone',
+    'cloud.platform',
+    'deployment.environment',
+    'k8s.cluster',
+    'k8s.node.name',
+    'k8s.node.uid',
+    'k8s.namespace.name',
+    'k8s.pod.uid',
+    'k8s.pod.name',
+    'k8s.container.name',
+    'k8s.replicaset.uid',
+    'k8s.replicaset.name',
+    'k8s.deployment.uid',
+    'k8s.deployment.name',
+    'k8s.statefulset.uid',
+    'k8s.statefulset.name',
+    'k8s.daemonset.uid',
+    'k8s.daemonset.name',
+    'k8s.job.uid',
+    'k8s.job.name',
+    'k8s.cronjob.uid',
+    'k8s.cronjob.name'
+]
+
+
 class Resource:
     tags: Dict[str, Any]
     dropped_tags_count: int
@@ -52,21 +126,31 @@ class Trace:
 
 def generate_tags() -> Dict[str, Any]:
     tags = {}
+    # service.name is "required" per spec
+    tags['service.name'] = random.choice(string.ascii_lowercase + string.ascii_uppercase) * random.randint(1, 5)
     for _ in range(random.randint(3, 12)):
-        kind = random.choice(['int', 'bool', 'date', 'text'])
-        num = random.randint(1, 50)
-        k = f"{kind}{num}"
-        if k in tags:
-            continue
-        if kind == 'int':
-            v = random.randint(1, 50)
-        elif kind == 'bool':
-            v = random.choice([True, False])
-        elif kind == 'date':
-            v = (date(2021, 1, 1) + timedelta(days=random.randint(0, 365))).isoformat()
+        which = random.choice([]'fake', 'standard'])
+        if which == 'fake':
+            kind = random.choice(['int', 'bool', 'date', 'text'])
+            num = random.randint(1, 50)
+            k = f"{kind}{num}"
+            if k in tags:
+                continue
+            if kind == 'int':
+                v = random.randint(1, 50)
+            elif kind == 'bool':
+                v = random.choice([True, False])
+            elif kind == 'date':
+                v = (date(2021, 1, 1) + timedelta(days=random.randint(0, 365))).isoformat()
+            else:
+                v = random.choice(string.ascii_lowercase + string.ascii_uppercase) * random.randint(1, 5)
+            tags[k] = v
         else:
+            k = random.choice(STD_TAGS)
+            if k in tags:
+                continue
             v = random.choice(string.ascii_lowercase + string.ascii_uppercase) * random.randint(1, 5)
-        tags[k] = v
+            tags[k] = v
     return tags
 
 
