@@ -1,28 +1,28 @@
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_query(_key SCHEMA_TRACING.tag_k, _path jsonpath)
-RETURNS SCHEMA_TRACING.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_query(_key SCHEMA_TRACING_PUBLIC.tag_k, _path jsonpath)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
 AS $sql$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators
-    SELECT '{}'::SCHEMA_TRACING.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
 $sql$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_regex(_key SCHEMA_TRACING.tag_k, _pattern text)
-RETURNS SCHEMA_TRACING.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
 AS $func$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators (no "if not exists" for operators)
-    SELECT '{}'::SCHEMA_TRACING.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_regex(_key SCHEMA_TRACING.tag_k, _pattern text)
-RETURNS SCHEMA_TRACING.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
 AS $func$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators (no "if not exists" for operators)
-    SELECT '{}'::SCHEMA_TRACING.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 
@@ -36,20 +36,20 @@ $func$
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE STRICT;
 
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.@? (
-    LEFTARG = SCHEMA_TRACING.tag_k,
+    LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = jsonpath,
     FUNCTION = SCHEMA_TRACING.tag_maps_query
 );
 
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.!=~ (
-    LEFTARG = SCHEMA_TRACING.tag_k,
+    LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = text,
     FUNCTION = SCHEMA_TRACING.tag_maps_not_regex
 );
 
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.? (
-    LEFTARG = SCHEMA_TRACING.tag_map,
-    RIGHTARG = SCHEMA_TRACING.tag_maps,
+    LEFTARG = SCHEMA_TRACING_PUBLIC.tag_map,
+    RIGHTARG = SCHEMA_TRACING_PUBLIC.tag_maps,
     FUNCTION = SCHEMA_TRACING.match
 );
 
@@ -57,19 +57,19 @@ DO $do$
 DECLARE
     _tpl1 text =
 $sql$
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_%s_%s(_key SCHEMA_TRACING.tag_k, _val %s)
-RETURNS SCHEMA_TRACING.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
 AS $func$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators
-    SELECT '{}'::SCHEMA_TRACING.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 $sql$;
     _tpl2 text =
 $sql$
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.%s (
-    LEFTARG = SCHEMA_TRACING.tag_k,
+    LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = %s,
     FUNCTION = SCHEMA_TRACING.tag_maps_%s_%s
 );
@@ -115,19 +115,19 @@ DO $do$
 DECLARE
     _tpl1 text =
 $sql$
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_%s_%s(_key SCHEMA_TRACING.tag_k, _val %s)
-RETURNS SCHEMA_TRACING.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
 AS $func$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators
-    SELECT '{}'::SCHEMA_TRACING.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 $sql$;
     _tpl2 text =
 $sql$
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.%s (
-    LEFTARG = SCHEMA_TRACING.tag_k,
+    LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = %s,
     FUNCTION = SCHEMA_TRACING.tag_maps_%s_%s
 );

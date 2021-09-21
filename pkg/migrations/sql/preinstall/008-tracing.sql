@@ -8,17 +8,17 @@ GRANT USAGE ON SCHEMA SCHEMA_TRACING_PUBLIC TO prom_reader;
 CREATE DOMAIN SCHEMA_TRACING_PUBLIC.trace_id uuid NOT NULL CHECK (value != '00000000-0000-0000-0000-000000000000');
 GRANT USAGE ON DOMAIN SCHEMA_TRACING_PUBLIC.trace_id TO prom_reader;
 
-CREATE DOMAIN SCHEMA_TRACING.tag_k text NOT NULL CHECK (value != '');
-GRANT USAGE ON DOMAIN SCHEMA_TRACING.tag_k TO prom_reader;
+CREATE DOMAIN SCHEMA_TRACING_PUBLIC.tag_k text NOT NULL CHECK (value != '');
+GRANT USAGE ON DOMAIN SCHEMA_TRACING_PUBLIC.tag_k TO prom_reader;
 
-CREATE DOMAIN SCHEMA_TRACING.tag_v jsonb NOT NULL;
-GRANT USAGE ON DOMAIN SCHEMA_TRACING.tag_v TO prom_reader;
+CREATE DOMAIN SCHEMA_TRACING_PUBLIC.tag_v jsonb NOT NULL;
+GRANT USAGE ON DOMAIN SCHEMA_TRACING_PUBLIC.tag_v TO prom_reader;
 
-CREATE DOMAIN SCHEMA_TRACING.tag_map jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(value) = 'object');
-GRANT USAGE ON DOMAIN SCHEMA_TRACING.tag_map TO prom_reader;
+CREATE DOMAIN SCHEMA_TRACING_PUBLIC.tag_map jsonb NOT NULL DEFAULT '{}'::jsonb CHECK (jsonb_typeof(value) = 'object');
+GRANT USAGE ON DOMAIN SCHEMA_TRACING_PUBLIC.tag_map TO prom_reader;
 
-CREATE DOMAIN SCHEMA_TRACING.tag_maps SCHEMA_TRACING.tag_map[] NOT NULL;
-GRANT USAGE ON DOMAIN SCHEMA_TRACING.tag_maps TO prom_reader;
+CREATE DOMAIN SCHEMA_TRACING_PUBLIC.tag_maps SCHEMA_TRACING_PUBLIC.tag_map[] NOT NULL;
+GRANT USAGE ON DOMAIN SCHEMA_TRACING_PUBLIC.tag_maps TO prom_reader;
 
 CREATE DOMAIN SCHEMA_TRACING_PUBLIC.tag_type smallint NOT NULL; --bitmap, may contain several types
 GRANT USAGE ON DOMAIN SCHEMA_TRACING_PUBLIC.tag_type TO prom_reader;
@@ -91,7 +91,7 @@ CREATE TABLE SCHEMA_TRACING.tag_key
 (
     id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     tag_type SCHEMA_TRACING_PUBLIC.tag_type NOT NULL,
-    key SCHEMA_TRACING.tag_k NOT NULL
+    key SCHEMA_TRACING_PUBLIC.tag_k NOT NULL
 );
 CREATE UNIQUE INDEX ON SCHEMA_TRACING.tag_key (key) INCLUDE (id, tag_type);
 GRANT SELECT ON TABLE SCHEMA_TRACING.tag_key TO prom_reader;
@@ -103,8 +103,8 @@ CREATE TABLE SCHEMA_TRACING.tag
     id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY,
     tag_type SCHEMA_TRACING_PUBLIC.tag_type NOT NULL,
     key_id bigint NOT NULL,
-    key SCHEMA_TRACING.tag_k NOT NULL REFERENCES SCHEMA_TRACING.tag_key (key) ON DELETE CASCADE,
-    value SCHEMA_TRACING.tag_v NOT NULL,
+    key SCHEMA_TRACING_PUBLIC.tag_k NOT NULL REFERENCES SCHEMA_TRACING.tag_key (key) ON DELETE CASCADE,
+    value SCHEMA_TRACING_PUBLIC.tag_v NOT NULL,
     UNIQUE (key, value) INCLUDE (id, key_id)
 )
 PARTITION BY HASH (key);
@@ -137,7 +137,7 @@ END
 $block$
 ;
 
-CREATE TYPE SCHEMA_TRACING.span_kind AS ENUM
+CREATE TYPE SCHEMA_TRACING_PUBLIC.span_kind AS ENUM
 (
     'SPAN_KIND_UNSPECIFIED',
     'SPAN_KIND_INTERNAL',
@@ -146,15 +146,15 @@ CREATE TYPE SCHEMA_TRACING.span_kind AS ENUM
     'SPAN_KIND_PRODUCER',
     'SPAN_KIND_CONSUMER'
 );
-GRANT USAGE ON TYPE SCHEMA_TRACING.span_kind TO prom_reader;
+GRANT USAGE ON TYPE SCHEMA_TRACING_PUBLIC.span_kind TO prom_reader;
 
-CREATE TYPE SCHEMA_TRACING.status_code AS ENUM
+CREATE TYPE SCHEMA_TRACING_PUBLIC.status_code AS ENUM
 (
     'STATUS_CODE_UNSET',
     'STATUS_CODE_OK',
     'STATUS_CODE_ERROR'
 );
-GRANT USAGE ON TYPE SCHEMA_TRACING.status_code TO prom_reader;
+GRANT USAGE ON TYPE SCHEMA_TRACING_PUBLIC.status_code TO prom_reader;
 
 CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.span_name
 (
@@ -195,16 +195,16 @@ CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.span
     start_time timestamptz NOT NULL,
     end_time timestamptz NOT NULL,
     trace_state text CHECK (trace_state != ''),
-    span_kind SCHEMA_TRACING.span_kind,
-    span_tags SCHEMA_TRACING.tag_map NOT NULL,
+    span_kind SCHEMA_TRACING_PUBLIC.span_kind,
+    span_tags SCHEMA_TRACING_PUBLIC.tag_map NOT NULL,
     dropped_tags_count int NOT NULL default 0,
     event_time tstzrange default NULL,
     dropped_events_count int NOT NULL default 0,
     dropped_link_count int NOT NULL default 0,
-    status_code SCHEMA_TRACING.status_code NOT NULL,
+    status_code SCHEMA_TRACING_PUBLIC.status_code NOT NULL,
     status_message text,
     inst_lib_id bigint,
-    resource_tags SCHEMA_TRACING.tag_map NOT NULL,
+    resource_tags SCHEMA_TRACING_PUBLIC.tag_map NOT NULL,
     resource_dropped_tags_count int NOT NULL default 0,
     resource_schema_url_id BIGINT NOT NULL,
     PRIMARY KEY (span_id, trace_id, start_time),
@@ -226,7 +226,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.event
     span_id bigint NOT NULL,
     event_number smallint NOT NULL,
     name text NOT NULL CHECK (name != ''),
-    tags SCHEMA_TRACING.tag_map NOT NULL,
+    tags SCHEMA_TRACING_PUBLIC.tag_map NOT NULL,
     dropped_tags_count int NOT NULL DEFAULT 0
 );
 CREATE INDEX ON SCHEMA_TRACING.event USING GIN (tags jsonb_path_ops);
@@ -243,7 +243,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.link
     linked_trace_id SCHEMA_TRACING_PUBLIC.trace_id NOT NULL,
     linked_span_id bigint NOT NULL,
     trace_state text CHECK (trace_state != ''),
-    tags SCHEMA_TRACING.tag_map NOT NULL,
+    tags SCHEMA_TRACING_PUBLIC.tag_map NOT NULL,
     dropped_tags_count int NOT NULL DEFAULT 0
 );
 CREATE INDEX ON SCHEMA_TRACING.link USING BTREE (span_id, span_start_time) INCLUDE (trace_id);
