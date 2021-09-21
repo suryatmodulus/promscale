@@ -46,7 +46,8 @@ var (
 			"matcher-functions.sql",
 			"ha.sql",
 			"metric-metadata.sql",
-			"tracing.sql",
+			"tracing-private.sql",
+			"tracing-public.sql",
 			"apply_permissions.sql", //should be last
 		},
 	}

@@ -53,11 +53,15 @@ CREATE OPERATOR SCHEMA_TRACING_PUBLIC.? (
     FUNCTION = SCHEMA_TRACING.match
 );
 
+/*
+    The anonymous block below generates an equals and not_equals function for each data type. These are used to
+    define the == and !== operators.
+*/
 DO $do$
 DECLARE
     _tpl1 text =
 $sql$
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_typed_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
 RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
 AS $func$
     -- this function body will be replaced later in idempotent script
@@ -71,7 +75,7 @@ $sql$
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.%s (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = %s,
-    FUNCTION = SCHEMA_TRACING.tag_maps_%s_%s
+    FUNCTION = SCHEMA_TRACING.tag_maps_typed_%s_%s
 );
 $sql$;
     _sql record;
@@ -111,11 +115,19 @@ BEGIN
 END;
 $do$;
 
+/*
+    The anonymous block below generates 4 functions for each data type.
+    The functions are used to define these operators:
+    #<
+    #<=
+    #>
+    #>=
+*/
 DO $do$
 DECLARE
     _tpl1 text =
 $sql$
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_typed_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
 RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
 AS $func$
     -- this function body will be replaced later in idempotent script
@@ -129,7 +141,7 @@ $sql$
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.%s (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = %s,
-    FUNCTION = SCHEMA_TRACING.tag_maps_%s_%s
+    FUNCTION = SCHEMA_TRACING.tag_maps_typed_%s_%s
 );
 $sql$;
     _sql record;
