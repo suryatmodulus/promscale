@@ -348,7 +348,7 @@ SELECT
     s.span_tags,
     s.dropped_tags_count as dropped_span_tags_count,
     s.resource_tags,
-    s.dropped_resource_tags_count,
+    s.resource_dropped_tags_count,
     s.status_code,
     s.status_message
 FROM SCHEMA_TRACING.event e

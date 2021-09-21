@@ -31,6 +31,8 @@ AS $func$
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_query(SCHEMA_TRACING_PUBLIC.tag_k, jsonpath) TO prom_reader;
+COMMENT ON FUNCTION SCHEMA_TRACING.tag_maps_query IS
+$$This function is used to define the @? operator.$$;
 
 CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
 RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
@@ -47,6 +49,8 @@ AS $func$
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_regex(SCHEMA_TRACING_PUBLIC.tag_k, text) TO prom_reader;
+COMMENT ON FUNCTION SCHEMA_TRACING.tag_maps_regex IS
+$$This function is used to define the ==~ operator.$$;
 
 CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
 RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
@@ -63,6 +67,8 @@ AS $func$
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_not_regex(SCHEMA_TRACING_PUBLIC.tag_k, text) TO prom_reader;
+COMMENT ON FUNCTION SCHEMA_TRACING.tag_maps_not_regex IS
+$$This function is used to define the !=~ operator.$$;
 
 CREATE OR REPLACE FUNCTION SCHEMA_TRACING.match(_tag_map SCHEMA_TRACING_PUBLIC.tag_map, _maps SCHEMA_TRACING_PUBLIC.tag_maps)
 RETURNS boolean
@@ -71,6 +77,8 @@ AS $func$
 $func$
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE STRICT;
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.match(SCHEMA_TRACING_PUBLIC.tag_map, SCHEMA_TRACING_PUBLIC.tag_maps) TO prom_reader;
+COMMENT ON FUNCTION SCHEMA_TRACING.match IS
+$$This function is used to define the ? operator.$$;
 
 CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_equal(_key SCHEMA_TRACING_PUBLIC.tag_k, _val SCHEMA_TRACING_PUBLIC.tag_v)
 RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
@@ -82,6 +90,8 @@ AS $func$
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_equal(SCHEMA_TRACING_PUBLIC.tag_k, SCHEMA_TRACING_PUBLIC.tag_v) TO prom_reader;
+COMMENT ON FUNCTION SCHEMA_TRACING.tag_maps_equal IS
+$$This function is used to define the === operator.$$;
 
 CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_equal(_key SCHEMA_TRACING_PUBLIC.tag_k, _val SCHEMA_TRACING_PUBLIC.tag_v)
 RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
@@ -93,6 +103,8 @@ AS $func$
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_not_equal(SCHEMA_TRACING_PUBLIC.tag_k, SCHEMA_TRACING_PUBLIC.tag_v) TO prom_reader;
+COMMENT ON FUNCTION SCHEMA_TRACING.tag_maps_not_equal IS
+$$This function is used to define the !== operator.$$;
 
 /*
     The anonymous block below generates an equals and not_equals function for each data type. These are used to
@@ -112,6 +124,10 @@ $sql$;
     _tpl2 text =
 $sql$
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_typed_%1$s_%2$s(SCHEMA_TRACING_PUBLIC.tag_k, %3$s) TO prom_reader;
+$sql$;
+    _tpl3 text =
+$sql$
+COMMENT ON FUNCTION SCHEMA_TRACING.tag_maps_typed_%1$s_%2$s IS $$This function is used to define the %3$s operator.$$;
 $sql$;
     _types text[] = ARRAY[
         'text',
@@ -133,8 +149,10 @@ BEGIN
     LOOP
         EXECUTE format(_tpl1, replace(_type, ' ', '_'), 'equal', _type);
         EXECUTE format(_tpl2, replace(_type, ' ', '_'), 'equal', _type);
+        EXECUTE format(_tpl3, replace(_type, ' ', '_'), 'equal', '==');
         EXECUTE format(_tpl1, replace(_type, ' ', '_'), 'not_equal', _type);
         EXECUTE format(_tpl2, replace(_type, ' ', '_'), 'not_equal', _type);
+        EXECUTE format(_tpl3, replace(_type, ' ', '_'), 'not_equal', '!==');
     END LOOP;
 END;
 $do$;
@@ -162,6 +180,10 @@ $sql$;
 $sql$
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_typed_%1$s_%2$s(SCHEMA_TRACING_PUBLIC.tag_k, %3$s) TO prom_reader;
 $sql$;
+    _tpl3 text =
+$sql$
+COMMENT ON FUNCTION SCHEMA_TRACING.tag_maps_typed_%1$s_%2$s IS $$This function is used to define the %3$s operator.$$;
+$sql$;
     _sql record;
 BEGIN
     FOR _sql IN
@@ -175,7 +197,8 @@ BEGIN
                 t.type,
                 format('$?(@ %s $x)', f.jop)
             ) as func,
-            format(_tpl2, replace(t.type, ' ', '_'), f.name, t.type) as op
+            format(_tpl2, replace(t.type, ' ', '_'), f.name, t.type) as op,
+            format(_tpl3, replace(t.type, ' ', '_'), f.name, f.op) as com
         FROM
         (
             VALUES
@@ -199,6 +222,7 @@ BEGIN
     LOOP
         EXECUTE _sql.func;
         EXECUTE _sql.op;
+        EXECUTE _sql.com;
     END LOOP;
 END;
 $do$;
