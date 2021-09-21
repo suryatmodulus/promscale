@@ -40,7 +40,7 @@ const (
 )
 
 var (
-	tableOfContets = map[string][]string{
+	tableOfContents = map[string][]string{
 		"idempotent": {
 			"base.sql",
 			"matcher-functions.sql",
@@ -98,7 +98,7 @@ func Migrate(db *pgx.Conn, versionInfo VersionInfo, extOptions extension.Extensi
 		return errors.ErrInvalidSemverFormat
 	}
 
-	mig := NewMigrator(db, migrations.MigrationFiles, tableOfContets)
+	mig := NewMigrator(db, migrations.MigrationFiles, tableOfContents)
 
 	err = mig.Migrate(appVersion)
 	if err != nil {

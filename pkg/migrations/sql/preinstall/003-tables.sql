@@ -13,14 +13,15 @@ GRANT SELECT ON TABLE public.prom_installation_info TO PUBLIC;
 --all modifications can only be done by owner
 
 INSERT INTO public.prom_installation_info(key, value) VALUES
-    ('catalog schema',        'SCHEMA_CATALOG'),
-    ('prometheus API schema', 'SCHEMA_PROM'),
-    ('extension schema',      'SCHEMA_EXT'),
-    ('series schema',         'SCHEMA_SERIES'),
-    ('metric schema',         'SCHEMA_METRIC'),
-    ('data schema',           'SCHEMA_DATA'),
-    ('information schema',    'SCHEMA_INFO'),
-    ('tracing schema',        'SCHEMA_TRACING');
+    ('catalog schema',          'SCHEMA_CATALOG'),
+    ('prometheus API schema',   'SCHEMA_PROM'),
+    ('extension schema',        'SCHEMA_EXT'),
+    ('series schema',           'SCHEMA_SERIES'),
+    ('metric schema',           'SCHEMA_METRIC'),
+    ('data schema',             'SCHEMA_DATA'),
+    ('information schema',      'SCHEMA_INFO'),
+    ('tracing schema',          'SCHEMA_TRACING_PUBLIC'),
+    ('tracing schema private',  'SCHEMA_TRACING');
 
 
 CREATE TABLE SCHEMA_CATALOG.series (
