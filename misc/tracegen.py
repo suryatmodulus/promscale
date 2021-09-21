@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from typing import Dict, List, Any, Tuple
+from typing import Dict, List, Any, Tuple, Optional
 import uuid
 from datetime import date, datetime, timedelta
 import random
@@ -106,14 +106,20 @@ def generate_instlib() -> InstLib:
 
 
 def generate_span_kind() -> str:
-    return random.choice(['SPAN_KIND_UNSPECIFIED', 'SPAN_KIND_INTERNAL', 'SPAN_KIND_SERVER', 'SPAN_KIND_CLIENT', 'SPAN_KIND_PRODUCER', 'SPAN_KIND_CONSUMER'])
+    return random.choice([
+        'SPAN_KIND_UNSPECIFIED',
+        'SPAN_KIND_INTERNAL',
+        'SPAN_KIND_SERVER',
+        'SPAN_KIND_CLIENT',
+        'SPAN_KIND_PRODUCER',
+        'SPAN_KIND_CONSUMER'])
 
 
 def generate_status_code() -> str:
     return random.choice(['STATUS_CODE_UNSET', 'STATUS_CODE_OK', 'STATUS_CODE_ERROR'])
 
 
-def generate_span(trace: Trace, parent_span: Span, depth: int, child: int, siblings: int, min_breadth: int, max_breadth: int) -> None:
+def generate_span(trace: Trace, parent_span: Optional[Span], depth: int, child: int, siblings: int, min_breadth: int, max_breadth: int) -> None:
     span = Span()
     span.trace_id = trace.trace_id
     span.span_id = random.getrandbits(63)
@@ -151,76 +157,34 @@ def generate_trace(min_depth: int, max_depth: int, min_breadth: int, max_breadth
     trace.trace_id = uuid.uuid4()
     trace.spans = []
     depth = random.randint(min_depth, max_depth)
-    generate_span(trace, None, depth, 0, 0, min_breadth, max_breadth)
+    generate_span(trace, None, depth, 0, 0, min_breadth, max_breadth)  # recursively build spans
     return trace
 
 
 def save_tag_keys(tag_keys: List[Tuple[str, int]], cur) -> None:
     to_save = []
     for t in tag_keys:
-        if t[0] not in std_tag_key_set:
+        if t[0] not in std_tag_key_set:  # don't bother saving standard tag keys, we know they are already there
             to_save.append(t)
     if len(to_save) == 0:
         return
-    to_save.sort(key=lambda tup: tup[0])
+    to_save.sort(key=lambda tup: tup[0])  # insert in sorted order to prevent deadlocks
     for tup in to_save:
         cur.execute(f"select _ps_trace.put_tag_key(%s, %s::_ps_trace.tag_type)", tup)
 
 
-#def save_tag_keys(tag_keys: List[str], cur, con) -> None:
-#    cur.execute('''
-#    select x
-#    from unnest(%s) x
-#    where not exists
-#    (
-#        select 1
-#        from _ps_trace.tag_key k
-#        where k.key = x
-#    )
-#    ''', (tag_keys,))
-#    for key in [k for k in cur]:
-#        for i in range(3):  # retry up to 3 times
-#            try:
-#                cur.execute('select _ps_trace.put_tag_key(%s)', (key,))
-#                con.commit()
-#                break
-#            except psycopg2.errors.DeadlockDetected:
-#                print('X', end='', flush=True)
-#                con.rollback()
-
-
 def save_tags(tags: List[Tuple[str, Any, int]], cur) -> None:
-    tags.sort(key=lambda tup: (tup[0], tup[1]))
+    tags.sort(key=lambda tup: (tup[0], tup[1]))  # insert in sorted order to prevent deadlocks
     for tag in tags:
+        # to_jsonb takes anyelement and gets confused on text without an explicit cast
         x = 'to_jsonb(%s::text)' if type(tag[1]) == str else 'to_jsonb(%s)'
         cur.execute(f"select _ps_trace.put_tag(%s, {x}, %s::_ps_trace.tag_type)", tag)
 
 
-#def save_tags(tags: Dict[str, Any], cur, con) -> None:
-#    cur.execute('''
-#    select key, value
-#    from jsonb_each(%s) x
-#    where not exists
-#    (
-#        select 1
-#        from _ps_trace.tag g
-#        where g.key = x.key
-#        and g.value = x.value
-#    )
-#    ''', (json.dumps(tags),))
-#    for k, v in [(r[0], r[1]) for r in cur]:
-#        for i in range(3):  # retry up to 3 times
-#            try:
-#                cur.execute('select _ps_trace.put_tag(%s, %s)', (k, json.dumps(v)))
-#                con.commit()
-#                break
-#            except psycopg2.errors.DeadlockDetected:
-#                print('X', end='', flush=True)
-#                con.rollback()
-
-
 def save_inst_lib(inst_lib: InstLib, cur) -> None:
-    cur.execute('insert into _ps_trace.schema_url (url) values (%s) on conflict (url) do nothing', (inst_lib.schema_url,))
+    cur.execute(
+        'insert into _ps_trace.schema_url (url) values (%s) on conflict (url) do nothing',
+        (inst_lib.schema_url,))
     cur.execute('''
         insert into _ps_trace.inst_lib (name, version, schema_url_id)
         select %s, %s, (select id from _ps_trace.schema_url where url = %s limit 1)
@@ -233,7 +197,11 @@ def save_span_name(name: str, cur) -> None:
 
 
 def save_span(span: Span, cur) -> None:
-    cur.execute('insert into _ps_trace.schema_url (url) values (%s) on conflict (url) do nothing', (span.resource.schema_url,))
+    sql = '''
+    insert into _ps_trace.schema_url (url) 
+    values (%s) 
+    on conflict (url) do nothing'''
+    cur.execute(sql, (span.resource.schema_url,))
     sql = '''
     insert into _ps_trace.span
     (
@@ -311,9 +279,7 @@ def save_trace(trace: Trace, cur, con) -> None:
         save_tags(tags, cur)
 
         save_inst_lib(span.inst_lib, cur)
-
         save_span_name(span.name, cur)
-
         save_span(span, cur)
 
         print('.', end='', flush=True)
@@ -328,7 +294,7 @@ def load_standard_tags(cur) -> None:
     std_tag_key_set = {k for k in std_tag_key_list}
 
 
-if __name__ == '__main__':
+def main() -> None:
     assert 'DATABASE_URL' in os.environ
     with psycopg2.connect(os.environ['DATABASE_URL']) as con:
         with con.cursor() as cur:
@@ -336,3 +302,6 @@ if __name__ == '__main__':
             while True:
                 save_trace(generate_trace(MIN_DEPTH, MAX_DEPTH, MIN_BREADTH, MAX_BREADTH), cur, con)
 
+
+if __name__ == '__main__':
+    main()
