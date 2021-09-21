@@ -577,4 +577,4 @@ VALUES
     (173, 'exception.stacktrace', _ps_trace.span_tag_type() | _ps_trace.event_tag_type() | _ps_trace.link_tag_type()),
     (174, 'exception.escaped', _ps_trace.span_tag_type() | _ps_trace.event_tag_type() | _ps_trace.link_tag_type())
 ;
-SELECT setval('_ps_trace.tag_key_id_seq', (SELECT max(id) from _ps_trace.tag_key));
+SELECT setval('_ps_trace.tag_key_id_seq', 1000);
