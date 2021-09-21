@@ -5,8 +5,8 @@ GRANT USAGE ON SCHEMA SCHEMA_TRACING TO prom_reader;
 CREATE SCHEMA IF NOT EXISTS SCHEMA_TRACING_PUBLIC;
 GRANT USAGE ON SCHEMA SCHEMA_TRACING_PUBLIC TO prom_reader;
 
-CREATE DOMAIN SCHEMA_TRACING.trace_id uuid NOT NULL CHECK (value != '00000000-0000-0000-0000-000000000000');
-GRANT USAGE ON DOMAIN SCHEMA_TRACING.trace_id TO prom_reader;
+CREATE DOMAIN SCHEMA_TRACING_PUBLIC.trace_id uuid NOT NULL CHECK (value != '00000000-0000-0000-0000-000000000000');
+GRANT USAGE ON DOMAIN SCHEMA_TRACING_PUBLIC.trace_id TO prom_reader;
 
 CREATE DOMAIN SCHEMA_TRACING.tag_k text NOT NULL CHECK (value != '');
 GRANT USAGE ON DOMAIN SCHEMA_TRACING.tag_k TO prom_reader;
@@ -188,7 +188,7 @@ GRANT USAGE ON SEQUENCE SCHEMA_TRACING.inst_lib_id_seq TO prom_writer;
 
 CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.span
 (
-    trace_id SCHEMA_TRACING.trace_id NOT NULL,
+    trace_id SCHEMA_TRACING_PUBLIC.trace_id NOT NULL,
     span_id bigint NOT NULL,
     parent_span_id bigint NULL,
     name_id bigint NOT NULL,
@@ -222,7 +222,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE SCHEMA_TRACING.span TO prom_writer
 CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.event
 (
     time timestamptz NOT NULL,
-    trace_id SCHEMA_TRACING.trace_id NOT NULL,
+    trace_id SCHEMA_TRACING_PUBLIC.trace_id NOT NULL,
     span_id bigint NOT NULL,
     event_number smallint NOT NULL,
     name text NOT NULL CHECK (name != ''),
@@ -237,10 +237,10 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE SCHEMA_TRACING.event TO prom_write
 
 CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.link
 (
-    trace_id SCHEMA_TRACING.trace_id NOT NULL,
+    trace_id SCHEMA_TRACING_PUBLIC.trace_id NOT NULL,
     span_id bigint NOT NULL,
     span_start_time timestamptz NOT NULL,
-    linked_trace_id SCHEMA_TRACING.trace_id NOT NULL,
+    linked_trace_id SCHEMA_TRACING_PUBLIC.trace_id NOT NULL,
     linked_span_id bigint NOT NULL,
     trace_state text CHECK (trace_state != ''),
     tags SCHEMA_TRACING.tag_map NOT NULL,

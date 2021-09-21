@@ -1,8 +1,8 @@
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.trace_tree(_trace_id SCHEMA_TRACING.trace_id)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.trace_tree(_trace_id SCHEMA_TRACING_PUBLIC.trace_id)
 RETURNS TABLE
 (
-    trace_id SCHEMA_TRACING.trace_id,
+    trace_id SCHEMA_TRACING_PUBLIC.trace_id,
     parent_span_id bigint,
     span_id bigint,
     lvl int,
@@ -37,12 +37,12 @@ AS $func$
         x.path
     FROM x
 $func$ LANGUAGE sql STABLE STRICT;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.trace_tree(SCHEMA_TRACING.trace_id) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.trace_tree(SCHEMA_TRACING_PUBLIC.trace_id) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.upstream_spans(_trace_id SCHEMA_TRACING.trace_id, _span_id bigint, _max_dist int default null)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.upstream_spans(_trace_id SCHEMA_TRACING_PUBLIC.trace_id, _span_id bigint, _max_dist int default null)
 RETURNS TABLE
 (
-    trace_id SCHEMA_TRACING.trace_id,
+    trace_id SCHEMA_TRACING_PUBLIC.trace_id,
     parent_span_id bigint,
     span_id bigint,
     dist int,
@@ -82,12 +82,12 @@ AS $func$
         x.path
     FROM x
 $func$ LANGUAGE sql STABLE;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.upstream_spans(SCHEMA_TRACING.trace_id, bigint, int) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.upstream_spans(SCHEMA_TRACING_PUBLIC.trace_id, bigint, int) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.downstream_spans(_trace_id SCHEMA_TRACING.trace_id, _span_id bigint, _max_dist int default null)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.downstream_spans(_trace_id SCHEMA_TRACING_PUBLIC.trace_id, _span_id bigint, _max_dist int default null)
 RETURNS TABLE
 (
-    trace_id SCHEMA_TRACING.trace_id,
+    trace_id SCHEMA_TRACING_PUBLIC.trace_id,
     parent_span_id bigint,
     span_id bigint,
     dist int,
@@ -127,12 +127,12 @@ AS $func$
         x.path
     FROM x
 $func$ LANGUAGE sql STABLE;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.downstream_spans(SCHEMA_TRACING.trace_id, bigint, int) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.downstream_spans(SCHEMA_TRACING_PUBLIC.trace_id, bigint, int) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.span_tree(_trace_id SCHEMA_TRACING.trace_id, _span_id bigint, _max_dist int default null)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.span_tree(_trace_id SCHEMA_TRACING_PUBLIC.trace_id, _span_id bigint, _max_dist int default null)
 RETURNS TABLE
 (
-    trace_id SCHEMA_TRACING.trace_id,
+    trace_id SCHEMA_TRACING_PUBLIC.trace_id,
     parent_span_id bigint,
     span_id bigint,
     dist int,
@@ -158,7 +158,7 @@ AS $func$
         path
     FROM SCHEMA_TRACING.downstream_spans(_trace_id, _span_id, _max_dist)
 $func$ LANGUAGE sql STABLE;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.span_tree(SCHEMA_TRACING.trace_id, bigint, int) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.span_tree(SCHEMA_TRACING_PUBLIC.trace_id, bigint, int) TO prom_reader;
 
 CREATE OR REPLACE FUNCTION SCHEMA_TRACING.put_tag_key(_key SCHEMA_TRACING.tag_k, _tag_type SCHEMA_TRACING_PUBLIC.tag_type)
 RETURNS VOID
