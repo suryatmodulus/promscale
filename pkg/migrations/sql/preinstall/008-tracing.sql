@@ -20,13 +20,77 @@ GRANT USAGE ON DOMAIN SCHEMA_TRACING.tag_map TO prom_reader;
 CREATE DOMAIN SCHEMA_TRACING.tag_maps SCHEMA_TRACING.tag_map[] NOT NULL;
 GRANT USAGE ON DOMAIN SCHEMA_TRACING.tag_maps TO prom_reader;
 
-CREATE DOMAIN SCHEMA_TRACING.tag_type smallint NOT NULL; --bitmap, may contain several types
-GRANT USAGE ON DOMAIN SCHEMA_TRACING.tag_type TO prom_reader;
+CREATE DOMAIN SCHEMA_TRACING_PUBLIC.tag_type smallint NOT NULL; --bitmap, may contain several types
+GRANT USAGE ON DOMAIN SCHEMA_TRACING_PUBLIC.tag_type TO prom_reader;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.span_tag_type()
+RETURNS SCHEMA_TRACING_PUBLIC.tag_type
+AS $sql$
+    SELECT (1<<0)::smallint::SCHEMA_TRACING_PUBLIC.tag_type
+$sql$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.span_tag_type() TO prom_reader;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.resource_tag_type()
+RETURNS SCHEMA_TRACING_PUBLIC.tag_type
+AS $sql$
+    SELECT (1<<1)::smallint::SCHEMA_TRACING_PUBLIC.tag_type
+$sql$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.resource_tag_type() TO prom_reader;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.event_tag_type()
+RETURNS SCHEMA_TRACING_PUBLIC.tag_type
+AS $sql$
+    SELECT (1<<2)::smallint::SCHEMA_TRACING_PUBLIC.tag_type
+$sql$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.event_tag_type() TO prom_reader;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.link_tag_type()
+RETURNS SCHEMA_TRACING_PUBLIC.tag_type
+AS $sql$
+    SELECT (1<<3)::smallint::SCHEMA_TRACING_PUBLIC.tag_type
+$sql$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.link_tag_type() TO prom_reader;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.is_span_tag_type(_tag_type SCHEMA_TRACING_PUBLIC.tag_type)
+RETURNS BOOLEAN
+AS $sql$
+    SELECT _tag_type & SCHEMA_TRACING_PUBLIC.span_tag_type() = SCHEMA_TRACING_PUBLIC.span_tag_type()
+$sql$
+LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.is_span_tag_type(SCHEMA_TRACING_PUBLIC.tag_type) TO prom_reader;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.is_resource_tag_type(_tag_type SCHEMA_TRACING_PUBLIC.tag_type)
+RETURNS BOOLEAN
+AS $sql$
+    SELECT _tag_type & SCHEMA_TRACING_PUBLIC.resource_tag_type() = SCHEMA_TRACING_PUBLIC.resource_tag_type()
+$sql$
+LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.is_resource_tag_type(SCHEMA_TRACING_PUBLIC.tag_type) TO prom_reader;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.is_event_tag_type(_tag_type SCHEMA_TRACING_PUBLIC.tag_type)
+RETURNS BOOLEAN
+AS $sql$
+    SELECT _tag_type & SCHEMA_TRACING_PUBLIC.event_tag_type() = SCHEMA_TRACING_PUBLIC.event_tag_type()
+$sql$
+LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.is_event_tag_type(SCHEMA_TRACING_PUBLIC.tag_type) TO prom_reader;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.is_link_tag_type(_tag_type SCHEMA_TRACING_PUBLIC.tag_type)
+RETURNS BOOLEAN
+AS $sql$
+    SELECT _tag_type & SCHEMA_TRACING_PUBLIC.link_tag_type() = SCHEMA_TRACING_PUBLIC.link_tag_type()
+$sql$
+LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.is_link_tag_type(SCHEMA_TRACING_PUBLIC.tag_type) TO prom_reader;
 
 CREATE TABLE SCHEMA_TRACING.tag_key
 (
     id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
-    tag_type SCHEMA_TRACING.tag_type NOT NULL,
+    tag_type SCHEMA_TRACING_PUBLIC.tag_type NOT NULL,
     key SCHEMA_TRACING.tag_k NOT NULL
 );
 CREATE UNIQUE INDEX ON SCHEMA_TRACING.tag_key (key) INCLUDE (id, tag_type);
@@ -37,7 +101,7 @@ GRANT USAGE ON SEQUENCE SCHEMA_TRACING.tag_key_id_seq TO prom_writer;
 CREATE TABLE SCHEMA_TRACING.tag
 (
     id BIGINT NOT NULL GENERATED ALWAYS AS IDENTITY,
-    tag_type SCHEMA_TRACING.tag_type NOT NULL,
+    tag_type SCHEMA_TRACING_PUBLIC.tag_type NOT NULL,
     key_id bigint NOT NULL,
     key SCHEMA_TRACING.tag_k NOT NULL REFERENCES SCHEMA_TRACING.tag_key (key) ON DELETE CASCADE,
     value SCHEMA_TRACING.tag_v NOT NULL,
@@ -187,71 +251,3 @@ CREATE INDEX ON SCHEMA_TRACING.link USING GIN (tags jsonb_path_ops);
 SELECT create_hypertable('SCHEMA_TRACING.link', 'span_start_time', partitioning_column=>'trace_id', number_partitions=>1);
 GRANT SELECT ON TABLE SCHEMA_TRACING.link TO prom_reader;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE SCHEMA_TRACING.link TO prom_writer;
-
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_query(_key SCHEMA_TRACING.tag_k, _path jsonpath)
-RETURNS SCHEMA_TRACING.tag_maps
-AS $sql$
-    -- this function body will be replaced later in idempotent script
-    -- it's only here so we can create the operators
-    SELECT '{}'::SCHEMA_TRACING.tag_maps
-$sql$
-LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_regex(_key SCHEMA_TRACING.tag_k, _pattern text)
-RETURNS SCHEMA_TRACING.tag_maps
-AS $func$
-    -- this function body will be replaced later in idempotent script
-    -- it's only here so we can create the operators (no "if not exists" for operators)
-    SELECT '{}'::SCHEMA_TRACING.tag_maps
-$func$
-LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_regex(_key SCHEMA_TRACING.tag_k, _pattern text)
-RETURNS SCHEMA_TRACING.tag_maps
-AS $func$
-    -- this function body will be replaced later in idempotent script
-    -- it's only here so we can create the operators (no "if not exists" for operators)
-    SELECT '{}'::SCHEMA_TRACING.tag_maps
-$func$
-LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.match(_tag_map SCHEMA_TRACING.tag_map, _maps SCHEMA_TRACING.tag_maps)
-RETURNS boolean
-AS $func$
-    -- this function body will be replaced later in idempotent script
-    -- it's only here so we can create the operators (no "if not exists" for operators)
-    SELECT false
-$func$
-LANGUAGE SQL IMMUTABLE PARALLEL SAFE STRICT;
-
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.span_tag_type()
-RETURNS SCHEMA_TRACING.tag_type
-AS $sql$
-    SELECT (1<<0)::smallint::SCHEMA_TRACING.tag_type
-$sql$
-LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.span_tag_type() TO prom_reader;
-
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.resource_tag_type()
-RETURNS SCHEMA_TRACING.tag_type
-AS $sql$
-    SELECT (1<<1)::smallint::SCHEMA_TRACING.tag_type
-$sql$
-LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.resource_tag_type() TO prom_reader;
-
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.event_tag_type()
-RETURNS SCHEMA_TRACING.tag_type
-AS $sql$
-    SELECT (1<<2)::smallint::SCHEMA_TRACING.tag_type
-$sql$
-LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.event_tag_type() TO prom_reader;
-
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.link_tag_type()
-RETURNS SCHEMA_TRACING.tag_type
-AS $sql$
-    SELECT (1<<3)::smallint::SCHEMA_TRACING.tag_type
-$sql$
-LANGUAGE SQL IMMUTABLE PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.link_tag_type() TO prom_reader;

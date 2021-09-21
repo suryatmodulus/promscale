@@ -1,4 +1,39 @@
 
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_query(_key SCHEMA_TRACING.tag_k, _path jsonpath)
+RETURNS SCHEMA_TRACING.tag_maps
+AS $sql$
+    -- this function body will be replaced later in idempotent script
+    -- it's only here so we can create the operators
+    SELECT '{}'::SCHEMA_TRACING.tag_maps
+$sql$
+LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_regex(_key SCHEMA_TRACING.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING.tag_maps
+AS $func$
+    -- this function body will be replaced later in idempotent script
+    -- it's only here so we can create the operators (no "if not exists" for operators)
+    SELECT '{}'::SCHEMA_TRACING.tag_maps
+$func$
+LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_regex(_key SCHEMA_TRACING.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING.tag_maps
+AS $func$
+    -- this function body will be replaced later in idempotent script
+    -- it's only here so we can create the operators (no "if not exists" for operators)
+    SELECT '{}'::SCHEMA_TRACING.tag_maps
+$func$
+LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.match(_tag_map SCHEMA_TRACING.tag_map, _maps SCHEMA_TRACING.tag_maps)
+RETURNS boolean
+AS $func$
+    -- this function body will be replaced later in idempotent script
+    -- it's only here so we can create the operators (no "if not exists" for operators)
+    SELECT false
+$func$
+LANGUAGE SQL IMMUTABLE PARALLEL SAFE STRICT;
 
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.@? (
     LEFTARG = SCHEMA_TRACING.tag_k,
