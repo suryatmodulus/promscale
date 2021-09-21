@@ -170,7 +170,7 @@ def save_tag_keys(tag_keys: List[Tuple[str, int]], cur) -> None:
         return
     to_save.sort(key=lambda tup: tup[0])  # insert in sorted order to prevent deadlocks
     for tup in to_save:
-        cur.execute(f"select _ps_trace.put_tag_key(%s, %s::_ps_trace.tag_type)", tup)
+        cur.execute(f"select ps_trace.put_tag_key(%s, %s::ps_trace.tag_type)", tup)
 
 
 def save_tags(tags: List[Tuple[str, Any, int]], cur) -> None:
@@ -178,7 +178,7 @@ def save_tags(tags: List[Tuple[str, Any, int]], cur) -> None:
     for tag in tags:
         # to_jsonb takes anyelement and gets confused on text without an explicit cast
         x = 'to_jsonb(%s::text)' if type(tag[1]) == str else 'to_jsonb(%s)'
-        cur.execute(f"select _ps_trace.put_tag(%s, {x}, %s::_ps_trace.tag_type)", tag)
+        cur.execute(f"select ps_trace.put_tag(%s, {x}, %s::ps_trace.tag_type)", tag)
 
 
 def save_inst_lib(inst_lib: InstLib, cur) -> None:
@@ -233,14 +233,14 @@ def save_span(span: Span, cur) -> None:
         %(span_kind)s,
         %(start_time)s,
         %(end_time)s,
-        _ps_trace.get_tag_map(%(span_tags)s),
+        ps_trace.get_tag_map(%(span_tags)s),
         %(dropped_tags_count)s,
         %(dropped_events_count)s,
         %(dropped_link_count)s,
         %(status_code)s,
         %(status_message)s,
         (select id from _ps_trace.inst_lib where name = %(inst_lib)s limit 1),
-        _ps_trace.get_tag_map(%(resource_tags)s),
+        ps_trace.get_tag_map(%(resource_tags)s),
         %(resource_dropped_tags_count)s,
         (select id from _ps_trace.schema_url where url = %(resource_schema_url)s limit 1)
     '''
