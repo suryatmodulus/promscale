@@ -46,7 +46,8 @@ var schemas = []string{
 	"prom_info",
 	"prom_metric",
 	"prom_series",
-	"prom_trace",
+	"_ps_trace",
+	"ps_trace",
 	"public",
 	"timescaledb_information",
 }
@@ -65,7 +66,8 @@ var schemasWOTimescaleDB = []string{
 	"prom_info",
 	"prom_metric",
 	"prom_series",
-	"prom_trace",
+	"_ps_trace",
+	"ps_trace",
 	"public",
 }
 
@@ -79,7 +81,8 @@ var ourSchemas = []string{
 	"prom_info",
 	"prom_metric",
 	"prom_series",
-	"prom_trace",
+	"_ps_trace",
+	"ps_trace",
 }
 
 type schemaInfo struct {

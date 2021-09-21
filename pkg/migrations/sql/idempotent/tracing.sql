@@ -1,49 +1,39 @@
-/*
-CREATE OR REPLACE FUNCTION _ps_trace.text(_trace_id _ps_trace.trace_id)
-RETURNS text
-AS $function$
-    SELECT replace(_trace_id::text, '-', '')
-$function$
-LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION _ps_trace.text(_ps_trace.trace_id) TO prom_reader;
-*/
-
-CREATE OR REPLACE FUNCTION _ps_trace.is_span_tag_type(_tag_type _ps_trace.tag_type)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.is_span_tag_type(_tag_type SCHEMA_TRACING.tag_type)
 RETURNS BOOLEAN
 AS $sql$
-    SELECT _tag_type & _ps_trace.span_tag_type() = _ps_trace.span_tag_type()
+    SELECT _tag_type & SCHEMA_TRACING.span_tag_type() = SCHEMA_TRACING.span_tag_type()
 $sql$
 LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION _ps_trace.is_span_tag_type(_ps_trace.tag_type) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.is_span_tag_type(SCHEMA_TRACING.tag_type) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.is_resource_tag_type(_tag_type _ps_trace.tag_type)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.is_resource_tag_type(_tag_type SCHEMA_TRACING.tag_type)
 RETURNS BOOLEAN
 AS $sql$
-    SELECT _tag_type & _ps_trace.resource_tag_type() = _ps_trace.resource_tag_type()
+    SELECT _tag_type & SCHEMA_TRACING.resource_tag_type() = SCHEMA_TRACING.resource_tag_type()
 $sql$
 LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION _ps_trace.is_resource_tag_type(_ps_trace.tag_type) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.is_resource_tag_type(SCHEMA_TRACING.tag_type) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.is_event_tag_type(_tag_type _ps_trace.tag_type)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.is_event_tag_type(_tag_type SCHEMA_TRACING.tag_type)
 RETURNS BOOLEAN
 AS $sql$
-    SELECT _tag_type & _ps_trace.event_tag_type() = _ps_trace.event_tag_type()
+    SELECT _tag_type & SCHEMA_TRACING.event_tag_type() = SCHEMA_TRACING.event_tag_type()
 $sql$
 LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION _ps_trace.is_event_tag_type(_ps_trace.tag_type) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.is_event_tag_type(SCHEMA_TRACING.tag_type) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.is_link_tag_type(_tag_type _ps_trace.tag_type)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.is_link_tag_type(_tag_type SCHEMA_TRACING.tag_type)
 RETURNS BOOLEAN
 AS $sql$
-    SELECT _tag_type & _ps_trace.link_tag_type() = _ps_trace.link_tag_type()
+    SELECT _tag_type & SCHEMA_TRACING.link_tag_type() = SCHEMA_TRACING.link_tag_type()
 $sql$
 LANGUAGE SQL IMMUTABLE STRICT PARALLEL SAFE;
-GRANT EXECUTE ON FUNCTION _ps_trace.is_link_tag_type(_ps_trace.tag_type) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.is_link_tag_type(SCHEMA_TRACING.tag_type) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.trace_tree(_trace_id _ps_trace.trace_id)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.trace_tree(_trace_id SCHEMA_TRACING.trace_id)
 RETURNS TABLE
 (
-    trace_id _ps_trace.trace_id,
+    trace_id SCHEMA_TRACING.trace_id,
     parent_span_id bigint,
     span_id bigint,
     lvl int,
@@ -57,7 +47,7 @@ AS $func$
             s1.span_id,
             1 as lvl,
             array[s1.span_id] as path
-        FROM _ps_trace.span s1
+        FROM SCHEMA_TRACING.span s1
         WHERE s1.trace_id = _trace_id
         AND s1.parent_span_id IS NULL
         UNION ALL
@@ -67,7 +57,7 @@ AS $func$
             x.lvl + 1 as lvl,
             x.path || s2.span_id as path
         FROM x
-        INNER JOIN _ps_trace.span s2
+        INNER JOIN SCHEMA_TRACING.span s2
         ON (x.span_id = s2.parent_span_id AND s2.trace_id = _trace_id)
     )
     SELECT
@@ -78,12 +68,12 @@ AS $func$
         x.path
     FROM x
 $func$ LANGUAGE sql STABLE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.trace_tree(_ps_trace.trace_id) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.trace_tree(SCHEMA_TRACING.trace_id) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.upstream_spans(_trace_id _ps_trace.trace_id, _span_id bigint, _max_dist int default null)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.upstream_spans(_trace_id SCHEMA_TRACING.trace_id, _span_id bigint, _max_dist int default null)
 RETURNS TABLE
 (
-    trace_id _ps_trace.trace_id,
+    trace_id SCHEMA_TRACING.trace_id,
     parent_span_id bigint,
     span_id bigint,
     dist int,
@@ -99,7 +89,7 @@ AS $func$
           0 as dist,
           1 as idx,
           array[s1.span_id] as path
-        FROM _ps_trace.span s1
+        FROM SCHEMA_TRACING.span s1
         WHERE s1.trace_id = _trace_id
         AND s1.span_id = _span_id
         UNION ALL
@@ -110,7 +100,7 @@ AS $func$
           x.idx + 1 as idx,
           x.path || s2.span_id as path
         FROM x
-        INNER JOIN _ps_trace.span s2
+        INNER JOIN SCHEMA_TRACING.span s2
         ON (x.parent_span_id = s2.span_id and s2.trace_id = _trace_id)
         WHERE (_max_dist IS NULL OR x.dist + 1 <= _max_dist)
     )
@@ -123,12 +113,12 @@ AS $func$
         x.path
     FROM x
 $func$ LANGUAGE sql STABLE;
-GRANT EXECUTE ON FUNCTION _ps_trace.upstream_spans(_ps_trace.trace_id, bigint, int) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.upstream_spans(SCHEMA_TRACING.trace_id, bigint, int) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.downstream_spans(_trace_id _ps_trace.trace_id, _span_id bigint, _max_dist int default null)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.downstream_spans(_trace_id SCHEMA_TRACING.trace_id, _span_id bigint, _max_dist int default null)
 RETURNS TABLE
 (
-    trace_id _ps_trace.trace_id,
+    trace_id SCHEMA_TRACING.trace_id,
     parent_span_id bigint,
     span_id bigint,
     dist int,
@@ -144,7 +134,7 @@ AS $func$
           0 as dist,
           1 as idx,
           array[s1.span_id] as path
-        FROM _ps_trace.span s1
+        FROM SCHEMA_TRACING.span s1
         WHERE s1.trace_id = _trace_id
         AND s1.span_id = _span_id
         UNION ALL
@@ -155,7 +145,7 @@ AS $func$
           x.idx + 1 as idx,
           x.path || s2.span_id as path
         FROM x
-        INNER JOIN _ps_trace.span s2
+        INNER JOIN SCHEMA_TRACING.span s2
         ON (x.span_id = s2.parent_span_id and s2.trace_id = _trace_id)
         WHERE (_max_dist IS NULL OR x.dist + 1 <= _max_dist)
     )
@@ -168,12 +158,12 @@ AS $func$
         x.path
     FROM x
 $func$ LANGUAGE sql STABLE;
-GRANT EXECUTE ON FUNCTION _ps_trace.downstream_spans(_ps_trace.trace_id, bigint, int) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.downstream_spans(SCHEMA_TRACING.trace_id, bigint, int) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.span_tree(_trace_id _ps_trace.trace_id, _span_id bigint, _max_dist int default null)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.span_tree(_trace_id SCHEMA_TRACING.trace_id, _span_id bigint, _max_dist int default null)
 RETURNS TABLE
 (
-    trace_id _ps_trace.trace_id,
+    trace_id SCHEMA_TRACING.trace_id,
     parent_span_id bigint,
     span_id bigint,
     dist int,
@@ -188,7 +178,7 @@ AS $func$
         dist * -1 as dist,
         idx,
         path
-    FROM _ps_trace.upstream_spans(_trace_id, _span_id, _max_dist)
+    FROM SCHEMA_TRACING.upstream_spans(_trace_id, _span_id, _max_dist)
     UNION
     SELECT
         trace_id,
@@ -197,51 +187,51 @@ AS $func$
         dist as dist,
         idx,
         path
-    FROM _ps_trace.downstream_spans(_trace_id, _span_id, _max_dist)
+    FROM SCHEMA_TRACING.downstream_spans(_trace_id, _span_id, _max_dist)
 $func$ LANGUAGE sql STABLE;
-GRANT EXECUTE ON FUNCTION _ps_trace.span_tree(_ps_trace.trace_id, bigint, int) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.span_tree(SCHEMA_TRACING.trace_id, bigint, int) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.put_tag_key(_key _ps_trace.tag_k, _tag_type _ps_trace.tag_type)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.put_tag_key(_key SCHEMA_TRACING.tag_k, _tag_type SCHEMA_TRACING.tag_type)
 RETURNS VOID
 AS $func$
-    INSERT INTO _ps_trace.tag_key AS k (key, tag_type)
+    INSERT INTO SCHEMA_TRACING.tag_key AS k (key, tag_type)
     VALUES (_key, _tag_type)
     ON CONFLICT (key) DO
     UPDATE SET tag_type = k.tag_type | EXCLUDED.tag_type
     WHERE k.tag_type & EXCLUDED.tag_type = 0
 $func$
 LANGUAGE SQL VOLATILE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.put_tag_key(_ps_trace.tag_k, _ps_trace.tag_type) TO prom_writer;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.put_tag_key(SCHEMA_TRACING.tag_k, SCHEMA_TRACING.tag_type) TO prom_writer;
 
-CREATE OR REPLACE FUNCTION _ps_trace.put_tag(_key _ps_trace.tag_k, _value _ps_trace.tag_v, _tag_type _ps_trace.tag_type)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.put_tag(_key SCHEMA_TRACING.tag_k, _value SCHEMA_TRACING.tag_v, _tag_type SCHEMA_TRACING.tag_type)
 RETURNS VOID
 AS $func$
-    INSERT INTO _ps_trace.tag AS a (tag_type, key_id, key, value)
+    INSERT INTO SCHEMA_TRACING.tag AS a (tag_type, key_id, key, value)
     SELECT _tag_type, ak.id, _key, _value
-    FROM _ps_trace.tag_key ak
+    FROM SCHEMA_TRACING.tag_key ak
     WHERE ak.key = _key
     ON CONFLICT (key, value) DO
     UPDATE SET tag_type = a.tag_type | EXCLUDED.tag_type
     WHERE a.tag_type & EXCLUDED.tag_type = 0
 $func$
 LANGUAGE SQL VOLATILE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.put_tag(_ps_trace.tag_k, _ps_trace.tag_v, _ps_trace.tag_type) TO prom_writer;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.put_tag(SCHEMA_TRACING.tag_k, SCHEMA_TRACING.tag_v, SCHEMA_TRACING.tag_type) TO prom_writer;
 
-CREATE OR REPLACE FUNCTION _ps_trace.has_tag(_tag_map _ps_trace.tag_map, _key _ps_trace.tag_k)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.has_tag(_tag_map SCHEMA_TRACING.tag_map, _key SCHEMA_TRACING.tag_k)
 RETURNS boolean
 AS $func$
     SELECT _tag_map ?
     (
         SELECT k.id::text
-        FROM _ps_trace.tag_key k
+        FROM SCHEMA_TRACING.tag_key k
         WHERE k.key = _key
         LIMIT 1
     )
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.has_tag(_ps_trace.tag_map, _ps_trace.tag_k) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.has_tag(SCHEMA_TRACING.tag_map, SCHEMA_TRACING.tag_k) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.jsonb(_tag_map _ps_trace.tag_map)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.jsonb(_tag_map SCHEMA_TRACING.tag_map)
 RETURNS jsonb
 AS $func$
     /*
@@ -255,16 +245,16 @@ AS $func$
         SELECT
             a.key,
             a.value
-        FROM _ps_trace.tag a
+        FROM SCHEMA_TRACING.tag a
         WHERE a.id = x.value::text::bigint
-        AND a.key = (SELECT k.key from _ps_trace.tag_key k WHERE k.id = x.key::bigint)
+        AND a.key = (SELECT k.key from SCHEMA_TRACING.tag_key k WHERE k.id = x.key::bigint)
         LIMIT 1
     ) a on (true)
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.jsonb(_ps_trace.tag_map) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.jsonb(SCHEMA_TRACING.tag_map) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.jsonb(_tag_map _ps_trace.tag_map, VARIADIC _keys _ps_trace.tag_k[])
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.jsonb(_tag_map SCHEMA_TRACING.tag_map, VARIADIC _keys SCHEMA_TRACING.tag_k[])
 RETURNS jsonb
 AS $func$
     /*
@@ -279,79 +269,79 @@ AS $func$
         SELECT
             a.key,
             a.value
-        FROM _ps_trace.tag a
+        FROM SCHEMA_TRACING.tag a
         WHERE a.id = x.value::text::bigint
         AND a.key = ANY(_keys) -- ANY works with partition elimination
     ) a on (true)
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.jsonb(_ps_trace.tag_map) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.jsonb(SCHEMA_TRACING.tag_map) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.val(_tag_map _ps_trace.tag_map, _key _ps_trace.tag_k)
-RETURNS _ps_trace.tag_v
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.val(_tag_map SCHEMA_TRACING.tag_map, _key SCHEMA_TRACING.tag_k)
+RETURNS SCHEMA_TRACING.tag_v
 AS $func$
     SELECT a.value
-    FROM _ps_trace.tag a
+    FROM SCHEMA_TRACING.tag a
     WHERE a.key = _key
     AND _tag_map @> jsonb_build_object(a.key_id, a.id)
     LIMIT 1
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.val(_ps_trace.tag_map, _ps_trace.tag_k) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.val(SCHEMA_TRACING.tag_map, SCHEMA_TRACING.tag_k) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.val_text(_tag_map _ps_trace.tag_map, _key _ps_trace.tag_k)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.val_text(_tag_map SCHEMA_TRACING.tag_map, _key SCHEMA_TRACING.tag_k)
 RETURNS text
 AS $func$
     SELECT a.value#>>'{}'
-    FROM _ps_trace.tag a
+    FROM SCHEMA_TRACING.tag a
     WHERE a.key = _key
     AND _tag_map @> jsonb_build_object(a.key_id, a.id)
     LIMIT 1
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.val_text(_ps_trace.tag_map, _ps_trace.tag_k) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.val_text(SCHEMA_TRACING.tag_map, SCHEMA_TRACING.tag_k) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.get_tag_map(_tags jsonb)
-RETURNS _ps_trace.tag_map
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.get_tag_map(_tags jsonb)
+RETURNS SCHEMA_TRACING.tag_map
 AS $func$
-    SELECT coalesce(jsonb_object_agg(a.key_id, a.id), '{}')::_ps_trace.tag_map
+    SELECT coalesce(jsonb_object_agg(a.key_id, a.id), '{}')::SCHEMA_TRACING.tag_map
     FROM jsonb_each(_tags) x
     INNER JOIN LATERAL
     (
         SELECT a.key_id, a.id
-        FROM _ps_trace.tag a
+        FROM SCHEMA_TRACING.tag a
         WHERE x.key = a.key
         AND x.value = a.value
         LIMIT 1
     ) a on (true)
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.get_tag_map(jsonb) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.get_tag_map(jsonb) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.tag_maps(_key _ps_trace.tag_k, _qry jsonpath, _vars jsonb DEFAULT '{}'::jsonb, _silent boolean DEFAULT false)
-RETURNS _ps_trace.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps(_key SCHEMA_TRACING.tag_k, _qry jsonpath, _vars jsonb DEFAULT '{}'::jsonb, _silent boolean DEFAULT false)
+RETURNS SCHEMA_TRACING.tag_maps
 AS $func$
-    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::_ps_trace.tag_maps
-    FROM _ps_trace.tag a
+    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::SCHEMA_TRACING.tag_maps
+    FROM SCHEMA_TRACING.tag a
     WHERE a.key = _key
     AND jsonb_path_exists(a.value, _qry, _vars, _silent)
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_maps(_ps_trace.tag_k, jsonpath, jsonb, boolean) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps(SCHEMA_TRACING.tag_k, jsonpath, jsonb, boolean) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.tag_maps_query(_key _ps_trace.tag_k, _path jsonpath)
-RETURNS _ps_trace.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_query(_key SCHEMA_TRACING.tag_k, _path jsonpath)
+RETURNS SCHEMA_TRACING.tag_maps
 AS $func$
-    SELECT _ps_trace.tag_maps(_key, _path);
+    SELECT SCHEMA_TRACING.tag_maps(_key, _path);
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_maps_query(_ps_trace.tag_k, jsonpath) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_query(SCHEMA_TRACING.tag_k, jsonpath) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.tag_maps_regex(_key _ps_trace.tag_k, _pattern text)
-RETURNS _ps_trace.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_regex(_key SCHEMA_TRACING.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING.tag_maps
 AS $func$
-    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::_ps_trace.tag_maps
-    FROM _ps_trace.tag a
+    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::SCHEMA_TRACING.tag_maps
+    FROM SCHEMA_TRACING.tag a
     WHERE a.key = _key AND
     -- if the jsonb value is a string, apply the regex directly
     -- otherwise, convert the value to a text representation, back to a jsonb string, and then apply
@@ -361,13 +351,13 @@ AS $func$
     END
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_maps_regex(_ps_trace.tag_k, text) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_regex(SCHEMA_TRACING.tag_k, text) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.tag_maps_not_regex(_key _ps_trace.tag_k, _pattern text)
-RETURNS _ps_trace.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_regex(_key SCHEMA_TRACING.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING.tag_maps
 AS $func$
-    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::_ps_trace.tag_maps
-    FROM _ps_trace.tag a
+    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::SCHEMA_TRACING.tag_maps
+    FROM SCHEMA_TRACING.tag a
     WHERE a.key = _key AND
     -- if the jsonb value is a string, apply the regex directly
     -- otherwise, convert the value to a text representation, back to a jsonb string, and then apply
@@ -377,72 +367,72 @@ AS $func$
     END
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_maps_not_regex(_ps_trace.tag_k, text) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_not_regex(SCHEMA_TRACING.tag_k, text) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.match(_tag_map _ps_trace.tag_map, _maps _ps_trace.tag_maps)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.match(_tag_map SCHEMA_TRACING.tag_map, _maps SCHEMA_TRACING.tag_maps)
 RETURNS boolean
 AS $func$
     SELECT _tag_map @> ANY(_maps)
 $func$
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.match(_ps_trace.tag_map, _ps_trace.tag_maps) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.match(SCHEMA_TRACING.tag_map, SCHEMA_TRACING.tag_maps) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.tag_id(_key _ps_trace.tag_k)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_id(_key SCHEMA_TRACING.tag_k)
 RETURNS text
 AS $func$
     SELECT k.id::text
-    FROM _ps_trace.tag_key k
+    FROM SCHEMA_TRACING.tag_key k
     WHERE k.key = _key
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_id(_ps_trace.tag_k) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_id(SCHEMA_TRACING.tag_k) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.tag_ids(VARIADIC _keys _ps_trace.tag_k[])
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_ids(VARIADIC _keys SCHEMA_TRACING.tag_k[])
 RETURNS text[]
 AS $func$
     SELECT array_agg(k.id::text)
-    FROM _ps_trace.tag_key k
+    FROM SCHEMA_TRACING.tag_key k
     WHERE k.key = ANY(_keys)
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_ids(_ps_trace.tag_k[]) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_ids(SCHEMA_TRACING.tag_k[]) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.tag_maps_equal(_key _ps_trace.tag_k, _val _ps_trace.tag_v)
-RETURNS _ps_trace.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_equal(_key SCHEMA_TRACING.tag_k, _val SCHEMA_TRACING.tag_v)
+RETURNS SCHEMA_TRACING.tag_maps
 AS $func$
-    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::_ps_trace.tag_maps
-    FROM _ps_trace.tag a
+    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::SCHEMA_TRACING.tag_maps
+    FROM SCHEMA_TRACING.tag a
     WHERE a.key = _key
     AND a.value = _val
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_maps_equal(_ps_trace.tag_k, _ps_trace.tag_v) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_equal(SCHEMA_TRACING.tag_k, SCHEMA_TRACING.tag_v) TO prom_reader;
 
-CREATE OR REPLACE FUNCTION _ps_trace.tag_maps_not_equal(_key _ps_trace.tag_k, _val _ps_trace.tag_v)
-RETURNS _ps_trace.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_equal(_key SCHEMA_TRACING.tag_k, _val SCHEMA_TRACING.tag_v)
+RETURNS SCHEMA_TRACING.tag_maps
 AS $func$
-    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::_ps_trace.tag_maps
-    FROM _ps_trace.tag a
+    SELECT coalesce(array_agg(jsonb_build_object(a.key_id, a.id)), '{}')::SCHEMA_TRACING.tag_maps
+    FROM SCHEMA_TRACING.tag a
     WHERE a.key = _key
     AND a.value != _val
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_maps_not_equal(_ps_trace.tag_k, _ps_trace.tag_v) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_not_equal(SCHEMA_TRACING.tag_k, SCHEMA_TRACING.tag_v) TO prom_reader;
 
 DO $do$
 DECLARE
     _tpl1 text =
 $sql$
-CREATE OR REPLACE FUNCTION _ps_trace.tag_maps_%1$s_%2$s(_key _ps_trace.tag_k, _val %3$s)
-RETURNS _ps_trace.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_%1$s_%2$s(_key SCHEMA_TRACING.tag_k, _val %3$s)
+RETURNS SCHEMA_TRACING.tag_maps
 AS $func$
-    SELECT _ps_trace.tag_maps_%2$s(_key,to_jsonb(_val))
+    SELECT SCHEMA_TRACING.tag_maps_%2$s(_key,to_jsonb(_val))
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 $sql$;
     _tpl2 text =
 $sql$
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_maps_%1$s_%2$s(_ps_trace.tag_k, %3$s) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_%1$s_%2$s(SCHEMA_TRACING.tag_k, %3$s) TO prom_reader;
 $sql$;
     _types text[] = ARRAY[
         'text',
@@ -474,16 +464,16 @@ DO $do$
 DECLARE
     _tpl1 text =
 $sql$
-CREATE OR REPLACE FUNCTION _ps_trace.tag_maps_%1$s_%2$s(_key _ps_trace.tag_k, _val %3$s)
-RETURNS _ps_trace.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_%1$s_%2$s(_key SCHEMA_TRACING.tag_k, _val %3$s)
+RETURNS SCHEMA_TRACING.tag_maps
 AS $func$
-    SELECT _ps_trace.tag_maps(_key, '%4$s', jsonb_build_object('x', to_jsonb(_val)))
+    SELECT SCHEMA_TRACING.tag_maps(_key, '%4$s', jsonb_build_object('x', to_jsonb(_val)))
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 $sql$;
     _tpl2 text =
 $sql$
-GRANT EXECUTE ON FUNCTION _ps_trace.tag_maps_%1$s_%2$s(_ps_trace.tag_k, %3$s) TO prom_reader;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_maps_%1$s_%2$s(SCHEMA_TRACING.tag_k, %3$s) TO prom_reader;
 $sql$;
     _sql record;
 BEGIN
@@ -526,7 +516,7 @@ BEGIN
 END;
 $do$;
 
-CREATE OR REPLACE VIEW ps_trace.span AS
+CREATE OR REPLACE VIEW SCHEMA_TRACING_PUBLIC.span AS
 SELECT
     s.trace_id,
     s.span_id,
@@ -552,15 +542,15 @@ SELECT
     s.resource_tags,
     s.resource_dropped_tags_count,
     u2.url as resource_schema_url
-FROM _ps_trace.span s
-INNER JOIN _ps_trace.span_name n ON (s.name_id = n.id)
-INNER JOIN _ps_trace.inst_lib il ON (s.inst_lib_id = il.id)
-INNER JOIN _ps_trace.schema_url u1 on (il.schema_url_id = u1.id)
-INNER JOIN _ps_trace.schema_url u2 on (il.schema_url_id = u2.id)
+FROM SCHEMA_TRACING.span s
+INNER JOIN SCHEMA_TRACING.span_name n ON (s.name_id = n.id)
+INNER JOIN SCHEMA_TRACING.inst_lib il ON (s.inst_lib_id = il.id)
+INNER JOIN SCHEMA_TRACING.schema_url u1 on (il.schema_url_id = u1.id)
+INNER JOIN SCHEMA_TRACING.schema_url u2 on (il.schema_url_id = u2.id)
 ;
-GRANT SELECT ON ps_trace.span to prom_reader;
+GRANT SELECT ON SCHEMA_TRACING_PUBLIC.span to prom_reader;
 
-CREATE OR REPLACE VIEW ps_trace.event AS
+CREATE OR REPLACE VIEW SCHEMA_TRACING_PUBLIC.event AS
 SELECT
     e.trace_id,
     e.span_id,
@@ -580,13 +570,13 @@ SELECT
     s.dropped_tags_count as dropped_span_tags_count,
     s.status_code,
     s.status_message
-FROM _ps_trace.event e
-INNER JOIN _ps_trace.span s on (e.span_id = s.span_id AND e.trace_id = s.trace_id)
-INNER JOIN _ps_trace.span_name n ON (s.name_id = n.id)
+FROM SCHEMA_TRACING.event e
+INNER JOIN SCHEMA_TRACING.span s on (e.span_id = s.span_id AND e.trace_id = s.trace_id)
+INNER JOIN SCHEMA_TRACING.span_name n ON (s.name_id = n.id)
 ;
-GRANT SELECT ON ps_trace.event to prom_reader;
+GRANT SELECT ON SCHEMA_TRACING_PUBLIC.event to prom_reader;
 
-CREATE OR REPLACE VIEW ps_trace.link AS
+CREATE OR REPLACE VIEW SCHEMA_TRACING_PUBLIC.link AS
 SELECT
     s1.trace_id                    ,
     s1.span_id                     ,
@@ -638,11 +628,11 @@ SELECT
     s2.resource_schema_url         as linked_resource_schema_url        ,
     k.tags as link_tags,
     k.dropped_tags_count as dropped_link_tags_count
-FROM _ps_trace.link k
-INNER JOIN ps_trace.span s1 on (k.span_id = s1.span_id and k.trace_id = s1.trace_id)
-INNER JOIN ps_trace.span s2 on (k.linked_span_id = s2.span_id and k.linked_trace_id = s2.trace_id)
+FROM SCHEMA_TRACING.link k
+INNER JOIN SCHEMA_TRACING_PUBLIC.span s1 on (k.span_id = s1.span_id and k.trace_id = s1.trace_id)
+INNER JOIN SCHEMA_TRACING_PUBLIC.span s2 on (k.linked_span_id = s2.span_id and k.linked_trace_id = s2.trace_id)
 ;
-GRANT SELECT ON ps_trace.link to prom_reader;
+GRANT SELECT ON SCHEMA_TRACING_PUBLIC.link to prom_reader;
 
 
 
