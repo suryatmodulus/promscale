@@ -26,7 +26,7 @@ AS $func$
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.match(_tag_map SCHEMA_TRACING.tag_map, _maps SCHEMA_TRACING.tag_maps)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.match(_tag_map SCHEMA_TRACING_PUBLIC.tag_map, _maps SCHEMA_TRACING_PUBLIC.tag_maps)
 RETURNS boolean
 AS $func$
     -- this function body will be replaced later in idempotent script
