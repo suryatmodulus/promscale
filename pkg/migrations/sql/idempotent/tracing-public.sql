@@ -26,8 +26,15 @@ AS $func$
             x.lvl + 1 as lvl,
             x.path || s2.span_id as path
         FROM x
-        INNER JOIN SCHEMA_TRACING.span s2
-        ON (x.span_id = s2.parent_span_id AND s2.trace_id = _trace_id)
+        INNER JOIN LATERAL
+        (
+            SELECT
+                s2.parent_span_id,
+                s2.span_id
+            FROM SCHEMA_TRACING.span s2
+            WHERE s2.trace_id = _trace_id
+            AND s2.parent_span_id = x.span_id
+        ) s2 ON (true)
     )
     SELECT
         _trace_id,
@@ -69,8 +76,15 @@ AS $func$
           x.idx + 1 as idx,
           x.path || s2.span_id as path
         FROM x
-        INNER JOIN SCHEMA_TRACING.span s2
-        ON (x.parent_span_id = s2.span_id and s2.trace_id = _trace_id)
+        INNER JOIN LATERAL
+        (
+            SELECT
+                s2.parent_span_id,
+                s2.span_id
+            FROM SCHEMA_TRACING.span s2
+            WHERE s2.trace_id = _trace_id
+            AND s2.span_id = x.parent_span_id
+        ) s2 ON (true)
         WHERE (_max_dist IS NULL OR x.dist + 1 <= _max_dist)
     )
     SELECT
@@ -114,8 +128,13 @@ AS $func$
           x.idx + 1 as idx,
           x.path || s2.span_id as path
         FROM x
-        INNER JOIN SCHEMA_TRACING.span s2
-        ON (x.span_id = s2.parent_span_id and s2.trace_id = _trace_id)
+        INNER JOIN LATERAL
+        (
+            SELECT *
+            FROM SCHEMA_TRACING.span s2
+            WHERE s2.trace_id = _trace_id
+            AND s2.parent_span_id = x.span_id
+        ) s2 ON (true)
         WHERE (_max_dist IS NULL OR x.dist + 1 <= _max_dist)
     )
     SELECT

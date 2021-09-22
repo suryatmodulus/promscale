@@ -210,7 +210,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.span
     PRIMARY KEY (span_id, trace_id, start_time),
     CHECK (start_time <= end_time)
 );
-CREATE INDEX ON SCHEMA_TRACING.span USING BTREE (trace_id, parent_span_id); -- used for recursive CTEs for trace tree queries
+CREATE INDEX ON SCHEMA_TRACING.span USING BTREE (trace_id, parent_span_id) INCLUDE (span_id); -- used for recursive CTEs for trace tree queries
 CREATE INDEX ON SCHEMA_TRACING.span USING GIN (span_tags jsonb_path_ops); -- supports tag filters. faster ingest than json_ops
 CREATE INDEX ON SCHEMA_TRACING.span USING BTREE (name_id); -- supports filters/joins to span_name table
 --CREATE INDEX ON SCHEMA_TRACING.span USING GIN (jsonb_object_keys(span_tags) array_ops); -- possible way to index key exists
