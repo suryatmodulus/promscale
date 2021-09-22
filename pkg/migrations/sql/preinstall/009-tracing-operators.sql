@@ -1,32 +1,32 @@
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_query(_key SCHEMA_TRACING_PUBLIC.tag_k, _path jsonpath)
-RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_matchers_query(_key SCHEMA_TRACING_PUBLIC.tag_k, _path jsonpath)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_matchers
 AS $sql$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators
-    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_matchers
 $sql$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
-RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_matchers_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_matchers
 AS $func$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators (no "if not exists" for operators)
-    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_matchers
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_not_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
-RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_matchers_not_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_matchers
 AS $func$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators (no "if not exists" for operators)
-    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_matchers
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.match(_tag_map SCHEMA_TRACING_PUBLIC.tag_map, _maps SCHEMA_TRACING_PUBLIC.tag_maps)
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.match(_tag_map SCHEMA_TRACING_PUBLIC.tag_map, _maps SCHEMA_TRACING_PUBLIC.tag_matchers)
 RETURNS boolean
 AS $func$
     -- this function body will be replaced later in idempotent script
@@ -38,24 +38,24 @@ LANGUAGE SQL IMMUTABLE PARALLEL SAFE STRICT;
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.@? (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = jsonpath,
-    FUNCTION = SCHEMA_TRACING.tag_maps_query
+    FUNCTION = SCHEMA_TRACING.tag_matchers_query
 );
 
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.==~ (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = text,
-    FUNCTION = SCHEMA_TRACING.tag_maps_regex
+    FUNCTION = SCHEMA_TRACING.tag_matchers_regex
 );
 
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.!=~ (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = text,
-    FUNCTION = SCHEMA_TRACING.tag_maps_not_regex
+    FUNCTION = SCHEMA_TRACING.tag_matchers_not_regex
 );
 
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.? (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_map,
-    RIGHTARG = SCHEMA_TRACING_PUBLIC.tag_maps,
+    RIGHTARG = SCHEMA_TRACING_PUBLIC.tag_matchers,
     FUNCTION = SCHEMA_TRACING.match
 );
 
@@ -67,12 +67,12 @@ DO $do$
 DECLARE
     _tpl1 text =
 $sql$
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_typed_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
-RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_matchers_typed_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_matchers
 AS $func$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators
-    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_matchers
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 $sql$;
@@ -81,7 +81,7 @@ $sql$
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.%s (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = %s,
-    FUNCTION = SCHEMA_TRACING.tag_maps_typed_%s_%s
+    FUNCTION = SCHEMA_TRACING.tag_matchers_typed_%s_%s
 );
 $sql$;
     _sql record;
@@ -133,12 +133,12 @@ DO $do$
 DECLARE
     _tpl1 text =
 $sql$
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_maps_typed_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
-RETURNS SCHEMA_TRACING_PUBLIC.tag_maps
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_matchers_typed_%s_%s(_key SCHEMA_TRACING_PUBLIC.tag_k, _val %s)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_matchers
 AS $func$
     -- this function body will be replaced later in idempotent script
     -- it's only here so we can create the operators
-    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_maps
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_matchers
 $func$
 LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 $sql$;
@@ -147,7 +147,7 @@ $sql$
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.%s (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = %s,
-    FUNCTION = SCHEMA_TRACING.tag_maps_typed_%s_%s
+    FUNCTION = SCHEMA_TRACING.tag_matchers_typed_%s_%s
 );
 $sql$;
     _sql record;
