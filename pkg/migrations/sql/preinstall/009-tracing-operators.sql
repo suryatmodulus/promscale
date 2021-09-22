@@ -35,6 +35,24 @@ AS $func$
 $func$
 LANGUAGE SQL IMMUTABLE PARALLEL SAFE STRICT;
 
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_matchers_not_regex(_key SCHEMA_TRACING_PUBLIC.tag_k, _pattern text)
+RETURNS SCHEMA_TRACING_PUBLIC.tag_matchers
+AS $func$
+    -- this function body will be replaced later in idempotent script
+    -- it's only here so we can create the operators (no "if not exists" for operators)
+    SELECT '{}'::SCHEMA_TRACING_PUBLIC.tag_matchers
+$func$
+LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.has_tag(_tag_map SCHEMA_TRACING_PUBLIC.tag_map, _key SCHEMA_TRACING_PUBLIC.tag_k)
+RETURNS boolean
+AS $func$
+    -- this function body will be replaced later in idempotent script
+    -- it's only here so we can create the operators (no "if not exists" for operators)
+    SELECT false
+$func$
+LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
+
 CREATE OPERATOR SCHEMA_TRACING_PUBLIC.@? (
     LEFTARG = SCHEMA_TRACING_PUBLIC.tag_k,
     RIGHTARG = jsonpath,
@@ -58,6 +76,13 @@ CREATE OPERATOR SCHEMA_TRACING_PUBLIC.? (
     RIGHTARG = SCHEMA_TRACING_PUBLIC.tag_matchers,
     FUNCTION = SCHEMA_TRACING.match
 );
+
+CREATE OPERATOR SCHEMA_TRACING_PUBLIC.# (
+    LEFTARG = SCHEMA_TRACING_PUBLIC.tag_map,
+    RIGHTARG = SCHEMA_TRACING_PUBLIC.tag_k,
+    FUNCTION = SCHEMA_TRACING.has_tag
+);
+
 
 /*
     The anonymous block below generates an equals and not_equals function for each data type. These are used to

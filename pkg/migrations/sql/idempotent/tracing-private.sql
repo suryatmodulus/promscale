@@ -1,18 +1,4 @@
 
-CREATE OR REPLACE FUNCTION SCHEMA_TRACING.has_tag(_tag_map SCHEMA_TRACING_PUBLIC.tag_map, _key SCHEMA_TRACING_PUBLIC.tag_k)
-RETURNS boolean
-AS $func$
-    SELECT _tag_map ?
-    (
-        SELECT k.id::text
-        FROM SCHEMA_TRACING.tag_key k
-        WHERE k.key = _key
-        LIMIT 1
-    )
-$func$
-LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
-GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.has_tag(SCHEMA_TRACING_PUBLIC.tag_map, SCHEMA_TRACING_PUBLIC.tag_k) TO prom_reader;
-
 CREATE OR REPLACE FUNCTION SCHEMA_TRACING.tag_matchers(_key SCHEMA_TRACING_PUBLIC.tag_k, _qry jsonpath, _vars jsonb DEFAULT '{}'::jsonb, _silent boolean DEFAULT false)
 RETURNS SCHEMA_TRACING_PUBLIC.tag_matchers
 AS $func$
@@ -105,6 +91,20 @@ LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.tag_matchers_not_equal(SCHEMA_TRACING_PUBLIC.tag_k, SCHEMA_TRACING_PUBLIC.tag_v) TO prom_reader;
 COMMENT ON FUNCTION SCHEMA_TRACING.tag_matchers_not_equal IS
 $$This function is used to define the !== operator.$$;
+
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING.has_tag(_tag_map SCHEMA_TRACING_PUBLIC.tag_map, _key SCHEMA_TRACING_PUBLIC.tag_k)
+RETURNS boolean
+AS $func$
+    SELECT SCHEMA_TRACING.match(_tag_map,
+    (
+        SELECT array_agg(jsonb_build_object(a.key_id, a.id))::SCHEMA_TRACING_PUBLIC.tag_matchers
+        FROM SCHEMA_TRACING.tag a
+        WHERE a.key = _key
+    ))
+$func$
+LANGUAGE SQL STABLE PARALLEL SAFE STRICT;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING.has_tag(SCHEMA_TRACING_PUBLIC.tag_map, SCHEMA_TRACING_PUBLIC.tag_k) TO prom_reader;
+
 
 /*
     The anonymous block below generates an equals and not_equals function for each data type. These are used to
