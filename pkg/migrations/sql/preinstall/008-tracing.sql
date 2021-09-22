@@ -174,7 +174,7 @@ GRANT SELECT ON TABLE SCHEMA_TRACING.schema_url TO prom_reader;
 GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE SCHEMA_TRACING.schema_url TO prom_writer;
 GRANT USAGE ON SEQUENCE SCHEMA_TRACING.schema_url_id_seq TO prom_writer;
 
-CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.inst_lib
+CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.instrumentation_lib
 (
     id bigint NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name text NOT NULL,
@@ -182,9 +182,9 @@ CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.inst_lib
     schema_url_id BIGINT REFERENCES SCHEMA_TRACING.schema_url(id),
     UNIQUE(name, version, schema_url_id)
 );
-GRANT SELECT ON TABLE SCHEMA_TRACING.inst_lib TO prom_reader;
-GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE SCHEMA_TRACING.inst_lib TO prom_writer;
-GRANT USAGE ON SEQUENCE SCHEMA_TRACING.inst_lib_id_seq TO prom_writer;
+GRANT SELECT ON TABLE SCHEMA_TRACING.instrumentation_lib TO prom_reader;
+GRANT SELECT, INSERT, UPDATE, DELETE ON TABLE SCHEMA_TRACING.instrumentation_lib TO prom_writer;
+GRANT USAGE ON SEQUENCE SCHEMA_TRACING.instrumentation_lib_id_seq TO prom_writer;
 
 CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.span
 (
@@ -203,7 +203,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.span
     dropped_link_count int NOT NULL default 0,
     status_code SCHEMA_TRACING_PUBLIC.status_code NOT NULL,
     status_message text,
-    inst_lib_id bigint,
+    instrumentation_lib_id bigint,
     resource_tags SCHEMA_TRACING_PUBLIC.tag_map NOT NULL,
     resource_dropped_tags_count int NOT NULL default 0,
     resource_schema_url_id BIGINT,

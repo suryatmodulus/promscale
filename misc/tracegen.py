@@ -27,7 +27,7 @@ class Resource:
     schema_url: str
 
 
-class InstLib:
+class InstrumentationLib:
     name: str
     version: str
     schema_url: str
@@ -48,7 +48,7 @@ class Span:
     dropped_link_count: int
     status_code: str
     status_message: str
-    inst_lib: InstLib
+    instrumentation_lib: InstrumentationLib
     resource: Resource
 
 
@@ -96,13 +96,13 @@ def generate_resource() -> Resource:
     return resource
 
 
-def generate_instlib() -> InstLib:
+def generate_instrumentation_lib() -> InstrumentationLib:
     i = random.randint(1, 20)
-    inst_lib = InstLib()
-    inst_lib.name = f"lib{i}"
-    inst_lib.version = "1.2.3"
-    inst_lib.schema_url = f"lib{i}.instrumentation.example"
-    return inst_lib
+    instrumentation_lib = InstrumentationLib()
+    instrumentation_lib.name = f"lib{i}"
+    instrumentation_lib.version = "1.2.3"
+    instrumentation_lib.schema_url = f"lib{i}.instrumentation.example"
+    return instrumentation_lib
 
 
 def generate_span_kind() -> str:
@@ -142,7 +142,7 @@ def generate_span(trace: Trace, parent_span: Optional[Span], depth: int, child: 
     span.dropped_link_count = random.choice([0, 0, 0, 1, 2])
     span.status_code = generate_status_code()
     span.status_message = span.status_code
-    span.inst_lib = generate_instlib()
+    span.instrumentation_lib = generate_instrumentation_lib()
     span.resource = generate_resource()
     trace.spans.append(span)
     depth = depth - 1
@@ -181,15 +181,15 @@ def save_tags(tags: List[Tuple[str, Any, int]], cur) -> None:
         cur.execute(f"select ps_trace.put_tag(%s, {x}, %s::ps_trace.tag_type)", tag)
 
 
-def save_inst_lib(inst_lib: InstLib, cur) -> None:
+def save_instrumentation_lib(instrumentation_lib: InstrumentationLib, cur) -> None:
     cur.execute(
         'insert into _ps_trace.schema_url (url) values (%s) on conflict (url) do nothing',
-        (inst_lib.schema_url,))
+        (instrumentation_lib.schema_url,))
     cur.execute('''
-        insert into _ps_trace.inst_lib (name, version, schema_url_id)
+        insert into _ps_trace.instrumentation_lib (name, version, schema_url_id)
         select %s, %s, (select id from _ps_trace.schema_url where url = %s limit 1)
         on conflict (name, version, schema_url_id) do nothing
-        ''', (inst_lib.name, inst_lib.version, inst_lib.schema_url))
+        ''', (instrumentation_lib.name, instrumentation_lib.version, instrumentation_lib.schema_url))
 
 
 def save_span_name(name: str, cur) -> None:
@@ -219,7 +219,7 @@ def save_span(span: Span, cur) -> None:
         dropped_link_count,
         status_code,
         status_message,
-        inst_lib_id,
+        instrumentation_lib_id,
         resource_tags,
         resource_dropped_tags_count,
         resource_schema_url_id
@@ -239,7 +239,7 @@ def save_span(span: Span, cur) -> None:
         %(dropped_link_count)s,
         %(status_code)s,
         %(status_message)s,
-        (select id from _ps_trace.inst_lib where name = %(inst_lib)s limit 1),
+        (select id from _ps_trace.instrumentation_lib where name = %(instrumentation_lib)s limit 1),
         ps_trace.get_tag_map(%(resource_tags)s),
         %(resource_dropped_tags_count)s,
         (select id from _ps_trace.schema_url where url = %(resource_schema_url)s limit 1)
@@ -259,7 +259,7 @@ def save_span(span: Span, cur) -> None:
         'dropped_link_count': span.dropped_link_count,
         'status_code': span.status_code,
         'status_message': span.status_message,
-        'inst_lib': span.inst_lib.name,
+        'instrumentation_lib': span.instrumentation_lib.name,
         'resource_tags': json.dumps(span.resource.tags),
         'resource_dropped_tags_count': span.resource.dropped_tags_count,
         'resource_schema_url': span.resource.schema_url
@@ -278,7 +278,7 @@ def save_trace(trace: Trace, cur, con) -> None:
         tags.extend([(k, v, RESOURCE_TAG_TYPE) for k, v in span.resource.tags.items()])
         save_tags(tags, cur)
 
-        save_inst_lib(span.inst_lib, cur)
+        save_instrumentation_lib(span.instrumentation_lib, cur)
         save_span_name(span.name, cur)
         save_span(span, cur)
 

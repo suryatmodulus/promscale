@@ -366,7 +366,7 @@ SELECT
     u2.url as resource_schema_url
 FROM SCHEMA_TRACING.span s
 LEFT OUTER JOIN SCHEMA_TRACING.span_name n ON (s.name_id = n.id)
-LEFT OUTER JOIN SCHEMA_TRACING.inst_lib il ON (s.inst_lib_id = il.id)
+LEFT OUTER JOIN SCHEMA_TRACING.instrumentation_lib il ON (s.instrumentation_lib_id = il.id)
 LEFT OUTER JOIN SCHEMA_TRACING.schema_url u1 on (il.schema_url_id = u1.id)
 LEFT OUTER JOIN SCHEMA_TRACING.schema_url u2 on (il.schema_url_id = u2.id)
 ;
