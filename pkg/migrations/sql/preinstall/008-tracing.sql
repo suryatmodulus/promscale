@@ -179,7 +179,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.inst_lib
     id bigint NOT NULL GENERATED ALWAYS AS IDENTITY PRIMARY KEY,
     name text NOT NULL,
     version text NOT NULL,
-    schema_url_id BIGINT NOT NULL REFERENCES SCHEMA_TRACING.schema_url(id),
+    schema_url_id BIGINT REFERENCES SCHEMA_TRACING.schema_url(id),
     UNIQUE(name, version, schema_url_id)
 );
 GRANT SELECT ON TABLE SCHEMA_TRACING.inst_lib TO prom_reader;
@@ -206,7 +206,7 @@ CREATE TABLE IF NOT EXISTS SCHEMA_TRACING.span
     inst_lib_id bigint,
     resource_tags SCHEMA_TRACING_PUBLIC.tag_map NOT NULL,
     resource_dropped_tags_count int NOT NULL default 0,
-    resource_schema_url_id BIGINT NOT NULL,
+    resource_schema_url_id BIGINT,
     PRIMARY KEY (span_id, trace_id, start_time),
     CHECK (start_time <= end_time)
 );
