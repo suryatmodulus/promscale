@@ -148,6 +148,30 @@ AS $func$
 $func$ LANGUAGE sql STABLE PARALLEL SAFE;
 GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.downstream_spans(SCHEMA_TRACING_PUBLIC.trace_id, bigint, int) TO prom_reader;
 
+CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.sibling_spans(_trace_id SCHEMA_TRACING_PUBLIC.trace_id, _span_id bigint)
+RETURNS TABLE
+(
+    trace_id SCHEMA_TRACING_PUBLIC.trace_id,
+    parent_span_id bigint,
+    span_id bigint
+)
+AS $func$
+    SELECT
+        _trace_id,
+        s.parent_span_id,
+        s.span_id
+    FROM SCHEMA_TRACING.span s
+    WHERE s.trace_id = _trace_id
+    AND s.parent_span_id =
+    (
+        SELECT parent_span_id
+        FROM SCHEMA_TRACING.span x
+        WHERE x.trace_id = _trace_id
+        AND x.span_id = _span_id
+    )
+$func$ LANGUAGE sql STABLE PARALLEL SAFE;
+GRANT EXECUTE ON FUNCTION SCHEMA_TRACING_PUBLIC.sibling_spans(SCHEMA_TRACING_PUBLIC.trace_id, bigint) TO prom_reader;
+
 CREATE OR REPLACE FUNCTION SCHEMA_TRACING_PUBLIC.span_tree(_trace_id SCHEMA_TRACING_PUBLIC.trace_id, _span_id bigint, _max_dist int default null)
 RETURNS TABLE
 (
