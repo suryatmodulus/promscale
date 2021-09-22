@@ -48,6 +48,7 @@ var (
 			"metric-metadata.sql",
 			"tracing-private.sql",
 			"tracing-public.sql",
+			"tracing-public-views.sql",
 			"apply_permissions.sql", //should be last
 		},
 	}
